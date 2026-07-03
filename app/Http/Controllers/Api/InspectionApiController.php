@@ -125,12 +125,10 @@ class InspectionApiController extends Controller
 
         foreach (['findings_image', 'action_image', 'inspection_image', 'nozle_image'] as $fileField) {
             if ($request->hasFile($fileField)) {
-                // Store the OPTIMIZED image and persist a FULL public URL (identical
-                // shape to the web + the Aduan/PICA/Pengalihan API controllers). The
-                // service returns a disk-relative path; without url('storage/'.$path)
-                // the column held a bare path and the mobile Detail/Edit views showed
-                // the path text instead of the image.
-                $payload[$fileField] = url('storage/' . ImageOptimizerService::storeAndOptimize($request->file($fileField), 'images'));
+                // Persist the OPTIMIZED image's disk-relative path (e.g.
+                // images/uuid.jpg), unchanged from what the service returns — the
+                // client builds the display URL as BASE_URL + /storage/ + path.
+                $payload[$fileField] = ImageOptimizerService::storeAndOptimize($request->file($fileField), 'images');
             }
         }
 

@@ -513,7 +513,15 @@ class OperationsApiController extends Controller
             ->when($request->filled('status'), fn ($builder) => $builder->where('status', $request->string('status')))
             ->when(
                 ! in_array($user->role, ['ict_developer', 'ict_group_leader', 'ict_ho'], true),
-                fn ($builder) => $builder->whereJsonContains('crew', $user->id)
+                // Non-privileged roles see a row when they are assigned to it
+                // (in `crew`) OR when they created it. Without the created_by
+                // branch a creator who assigns the job to a different crew could
+                // never see their own unscheduled job (bug: creator invisible to
+                // self while visible to higher roles).
+                fn ($builder) => $builder->where(function ($sub) use ($user) {
+                    $sub->whereJsonContains('crew', $user->id)
+                        ->orWhere('created_by', $user->id);
+                })
             )
             ->where('site', $site)
             ->orderByDesc('created_at');

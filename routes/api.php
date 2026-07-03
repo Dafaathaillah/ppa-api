@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\DashboardAllSiteApiController;
 use App\Http\Controllers\Api\DashboardApiController;
 use App\Http\Controllers\Api\DepartmentApiController;
 use App\Http\Controllers\Api\DeviceTokenApiController;
+use App\Http\Controllers\Api\GuestApiController;
 use App\Http\Controllers\Api\InspectionApiController;
 use App\Http\Controllers\Api\InspectionScheduleApiController;
 use App\Http\Controllers\Api\InventoryApiController;
@@ -63,6 +64,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/aduan-ho/{id}', [AduanHoApiController::class, 'destroy']);
 
     Route::apiResource('departments', DepartmentApiController::class)->except(['create', 'edit']);
+
+    // Guest flow (parity with web GuestAllController + GuestReportController).
+    // Everything is scoped to the authenticated user; no new tables/flows.
+    Route::get('/guest/dashboard', [GuestApiController::class, 'dashboard']);
+    Route::post('/guest/pengajuan-akses', [GuestApiController::class, 'pengajuanAkses']);
+    Route::get('/guest/complaints/meta', [GuestApiController::class, 'complaintMeta']);
+    Route::get('/guest/complaints', [GuestApiController::class, 'complaints']);
+    Route::post('/guest/complaints', [GuestApiController::class, 'storeComplaint']);
 
     Route::get('/pengajuan-akses', [PengajuanAksesApiController::class, 'index']);
     Route::get('/pengajuan-akses/{id}', [PengajuanAksesApiController::class, 'show']);
