@@ -10,6 +10,7 @@ use App\Support\Api\InspectionRegistry;
 use App\Support\Api\SiteContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class InspectionApiController extends Controller
 {
@@ -134,6 +135,37 @@ class InspectionApiController extends Controller
 
         if (in_array('last_edited_by', $inspection->getFillable(), true) && $request->user()) {
             $payload['last_edited_by'] = $request->user()->nrp;
+        }
+
+        // ---------------------------------------------------------------------
+        // Data-integrity guard — the backend is the LAST line of defense.
+        //
+        // Every inspection type that carries an `inspection_at` timestamp
+        // (laptop / printer / mobile-tower; computer has NO such column and is
+        // therefore skipped automatically via the fillable check) must never be
+        // marked inspected (inspection_status = 'Y') without that timestamp.
+        // The web source of truth always stamps inspection_at server-side when an
+        // inspection is performed; the mobile client supplies it in the payload.
+        // If the resulting row WOULD be 'Y' with an empty inspection_at, reject
+        // with HTTP 422 instead of persisting a corrupt row — this makes the
+        // reported ('Y', NULL) state impossible to write from any client.
+        // ---------------------------------------------------------------------
+        if (in_array('inspection_at', $inspection->getFillable(), true)) {
+            $effectiveStatus = array_key_exists('inspection_status', $payload)
+                ? (string) $payload['inspection_status']
+                : (string) $inspection->getAttribute('inspection_status');
+
+            if (strtoupper(trim($effectiveStatus)) === 'Y') {
+                $effectiveAt = array_key_exists('inspection_at', $payload)
+                    ? $payload['inspection_at']
+                    : $inspection->getAttribute('inspection_at');
+
+                if (blank($effectiveAt)) {
+                    throw ValidationException::withMessages([
+                        'inspection_at' => 'inspection_at wajib terisi ketika inspection_status = Y.',
+                    ]);
+                }
+            }
         }
 
         $inspection->update($payload);
