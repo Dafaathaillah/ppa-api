@@ -5,7 +5,6 @@ namespace App\Listeners;
 use App\Events\AduanAssigned;
 use App\Events\AduanCreated;
 use App\Events\AduanUpdated;
-use App\Models\User;
 use App\Services\PushNotificationService;
 use App\Support\AduanPushNotifier;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -42,7 +41,10 @@ class SendAduanPushNotification implements ShouldQueue
         // (mobile), so no checkpoint is needed; deliver immediately.
         $title = $event instanceof AduanAssigned ? 'Aduan Ditugaskan' : 'Update Aduan';
 
-        $recipients = User::where('site', $aduan->site)->get();
+        // Non-guest staff of the site PLUS the complaint owner (even a guest). A
+        // guest therefore receives the assign / progress / closed notification for
+        // THEIR OWN ticket only, never for anyone else's — ownership, not role.
+        $recipients = AduanPushNotifier::ownerEventRecipients($aduan);
         if ($recipients->isEmpty()) {
             return;
         }

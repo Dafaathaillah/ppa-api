@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\Aduan;
 use App\Models\User;
 use App\Services\PushNotificationService;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -42,7 +43,10 @@ class AduanPushNotifier
         }
 
         try {
-            $recipients = User::where('site', $aduan->site)->get();
+            // A brand-new complaint is an ICT alert (this replaced the web's
+            // site-wide 2s SweetAlert poll). Guests must NEVER receive it — not for
+            // their own creation, and not for anybody else's. See broadcastRecipients().
+            $recipients = self::broadcastRecipients($aduan);
             if ($recipients->isNotEmpty()) {
                 $this->push->sendToUsers(
                     $recipients,
@@ -66,6 +70,48 @@ class AduanPushNotifier
             DB::table('aduans')->where('id', $aduan->id)->update(['push_sent_at' => null]);
             throw $e;
         }
+    }
+
+    /**
+     * Recipients for a plain BROADCAST (a new complaint arrived): every ICT/staff
+     * user of the aduan's site, but NEVER a guest.
+     *
+     * The Guest role must not follow the ICT notification flow: a guest may only
+     * ever hear about their OWN complaint, and even then only for status events
+     * (assign / progress / closed), not for "a new complaint exists". So guests
+     * are excluded from this audience entirely. Users with a NULL role are kept
+     * (only an explicit 'guest' is dropped) so existing ICT delivery is unchanged.
+     *
+     * @return Collection<int,User>
+     */
+    public static function broadcastRecipients(Aduan $aduan): Collection
+    {
+        return User::where('site', $aduan->site)
+            ->where(function ($q) {
+                $q->whereNull('role')->orWhere('role', '!=', 'guest');
+            })
+            ->get();
+    }
+
+    /**
+     * Recipients for an event tied to a SPECIFIC complaint (assignment / progress
+     * / closed): all non-guest staff of the site PLUS the complaint's owner
+     * (matched by nrp) even when that owner is a guest.
+     *
+     * This is the ONLY path by which a guest is ever pushed, and strictly for
+     * their own ticket — ownership (creator nrp), never role/site/broadcast.
+     *
+     * @return Collection<int,User>
+     */
+    public static function ownerEventRecipients(Aduan $aduan): Collection
+    {
+        $staff = self::broadcastRecipients($aduan);
+
+        $owner = ! empty($aduan->nrp)
+            ? User::where('nrp', $aduan->nrp)->get()
+            : collect();
+
+        return $staff->concat($owner)->unique('id')->values();
     }
 
     public static function summary(Aduan $aduan): string

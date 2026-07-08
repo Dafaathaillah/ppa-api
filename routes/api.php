@@ -72,6 +72,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/guest/complaints/meta', [GuestApiController::class, 'complaintMeta']);
     Route::get('/guest/complaints', [GuestApiController::class, 'complaints']);
     Route::post('/guest/complaints', [GuestApiController::class, 'storeComplaint']);
+    Route::post('/guest/complaints/{id}/rating', [GuestApiController::class, 'rateComplaint']);
 
     Route::get('/pengajuan-akses', [PengajuanAksesApiController::class, 'index']);
     Route::get('/pengajuan-akses/{id}', [PengajuanAksesApiController::class, 'show']);

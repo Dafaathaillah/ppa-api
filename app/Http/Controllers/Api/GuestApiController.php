@@ -125,6 +125,46 @@ class GuestApiController extends Controller
     }
 
     /**
+     * Submit a satisfaction rating (1–5 stars) for one of the guest's OWN
+     * complaints once it is CLOSED. Mirrors the web GuestReportController flow
+     * (unratedClosed + storeRating) and reuses the existing `user_rating` column
+     * — no schema change, no new business flow.
+     *
+     * Scoped hard to the caller (Aduan.nrp === auth nrp) so a guest can never
+     * rate someone else's ticket. Persisted with saveQuietly() so the rating
+     * write does NOT trip the AduanObserver and fire a spurious "Update Aduan"
+     * push back at the rater.
+     */
+    public function rateComplaint(Request $request, string $id)
+    {
+        $validated = $request->validate([
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+        ]);
+
+        $user = $request->user();
+
+        $aduan = Aduan::query()
+            ->whereNull('deleted_at')
+            ->where('nrp', $user->nrp)
+            ->findOrFail($id);
+
+        // Only CLOSED complaints are ratable, matching the web unratedClosed gate.
+        if (strtoupper((string) $aduan->status) !== 'CLOSED') {
+            return response()->json([
+                'message' => 'Rating hanya dapat diberikan untuk complaint yang sudah Closed.',
+            ], 422);
+        }
+
+        $aduan->user_rating = $validated['rating'];
+        $aduan->saveQuietly();
+
+        return response()->json([
+            'message' => 'Rating tersimpan. Terima kasih atas penilaian Anda.',
+            'data'    => $aduan,
+        ]);
+    }
+
+    /**
      * Data needed to render the guest create-complaint form: auto-generated
      * ticket, the readonly reporter identity, and site-scoped categories.
      * Mirrors GuestReportController@create.
