@@ -30,7 +30,8 @@ class InventoryApiController extends Controller
         // column (not just code + name). Columns are intersected with the model's
         // fillable so a type that lacks a column never breaks the query.
         if ($request->filled('search')) {
-            $term = '%' . $request->string('search') . '%';
+            $raw = (string) $request->string('search');
+            $term = '%' . addcslashes($raw, '%_\\') . '%';
             $fillable = (new $model())->getFillable();
             $candidates = array_unique(array_merge(
                 [$config['code_column'], $config['name_column']],
@@ -42,11 +43,46 @@ class InventoryApiController extends Controller
                     'location', 'status', 'condition', 'dept', 'note', 'spesifikasi', 'aplikasi',
                 ], $fillable)
             ));
-            $query->where(function ($builder) use ($candidates, $term) {
+
+            // The card shows the assigned User/PIC (laptop/computer eager-load
+            // `pengguna`), so a keyword like a PIC name must match through that
+            // relation too — not just the inventory's own columns.
+            $searchUserRelation = in_array('pengguna', $config['relations'] ?? [], true)
+                ? 'pengguna'
+                : null;
+            $userCols = ['username', 'department', 'nrp', 'position'];
+
+            // Status-label keyword parity: the status pill on the card shows the
+            // raw code (e.g. READY_USED / SCRAP). A user typing "ready used" (with
+            // a space) or "scrap" should still match — LIKE alone misses the
+            // underscore form, so map the recognised labels to the stored value.
+            $needle = strtolower(trim(preg_replace('/\s+/', ' ', $raw)));
+            $statusValue = match ($needle) {
+                'ready used', 'ready_used' => 'READY_USED',
+                'scrap'                    => 'SCRAP',
+                default                    => null,
+            };
+            $hasStatusCol = in_array('status', $fillable, true);
+
+            $query->where(function ($builder) use ($candidates, $term, $searchUserRelation, $userCols, $statusValue, $hasStatusCol) {
                 foreach (array_values($candidates) as $i => $col) {
                     $i === 0
                         ? $builder->where($col, 'like', $term)
                         : $builder->orWhere($col, 'like', $term);
+                }
+                if ($searchUserRelation) {
+                    $builder->orWhereHas($searchUserRelation, function ($u) use ($userCols, $term) {
+                        $u->where(function ($inner) use ($userCols, $term) {
+                            foreach ($userCols as $i => $col) {
+                                $i === 0
+                                    ? $inner->where($col, 'like', $term)
+                                    : $inner->orWhere($col, 'like', $term);
+                            }
+                        });
+                    });
+                }
+                if ($statusValue !== null && $hasStatusCol) {
+                    $builder->orWhere('status', $statusValue);
                 }
             });
         }

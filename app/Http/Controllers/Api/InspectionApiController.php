@@ -32,14 +32,31 @@ class InspectionApiController extends Controller
         if ($request->filled('search')) {
             $raw  = (string) $request->string('search');
             $term = '%' . addcslashes($raw, '%_\\') . '%';
+            $fillable = (new $model())->getFillable();
             $ownCols = array_values(array_intersect(
                 $config['search_own'] ?? [],
-                (new $model())->getFillable()
+                $fillable
             ));
             $relation     = $config['search_relation'] ?? null;
             $relationCols = $config['search_relation_cols'] ?? [];
             $userRelation = $config['search_user_relation'] ?? null;
             $userCols     = $config['search_user_cols'] ?? [];
+
+            // Status-label keyword support (visible-label parity). A user may type
+            // the human status rendered on the card — "inspected", "not inspected
+            // yet", "scrap", "ready used" — and expect it to filter by that label
+            // rather than a raw column substring (which would never match the
+            // stored codes 'Y' / 'SCRAP' / 'READY_USED'). SCRAP is read from the
+            // inspection's OWN inventory/device/asset status column, exactly like
+            // the mobile card's _isInspectionScrap(), so the label meaning is
+            // identical: SCRAP → "-", non-SCRAP + not Y → "Not Inspected Yet",
+            // Y (non-SCRAP) → "INSPECTED".
+            $needle = strtolower(trim(preg_replace('/\s+/', ' ', $raw)));
+            $statusCols = array_values(array_intersect(
+                ['inventory_status', 'device_status', 'asset_status'],
+                $fillable
+            ));
+            $hasInspectionStatus = in_array('inspection_status', $fillable, true);
 
             $orLike = function ($builder, array $cols) use ($term) {
                 $builder->where(function ($inner) use ($cols, $term) {
@@ -51,7 +68,36 @@ class InspectionApiController extends Controller
                 });
             };
 
-            $query->where(function ($outer) use ($term, $ownCols, $relation, $relationCols, $userRelation, $userCols, $orLike) {
+            // Row is NOT SCRAP across whichever own status column(s) the type has
+            // (mirrors _isInspectionScrap: only the inspection's own column drives
+            // the "-" vs "Not Inspected Yet" label).
+            $notScrap = function ($q) use ($statusCols) {
+                foreach ($statusCols as $col) {
+                    $q->where(function ($w) use ($col) {
+                        $w->whereNull($col)->orWhere($col, '!=', 'SCRAP');
+                    });
+                }
+            };
+
+            // Row carries the given inventory-status VALUE either on its own status
+            // column(s) or on the eager-loaded asset relation (the visible status
+            // pill on the card reads the relation's `status`). OR-union → broad
+            // match aligned with what the user sees.
+            $assetStatusIs = function ($q, string $value) use ($statusCols, $relation) {
+                $q->where(function ($w) use ($statusCols, $relation, $value) {
+                    foreach ($statusCols as $i => $col) {
+                        $i === 0 ? $w->where($col, $value) : $w->orWhere($col, $value);
+                    }
+                    if ($relation) {
+                        $w->orWhereHas($relation, fn ($r) => $r->where('status', $value));
+                    }
+                });
+            };
+
+            $query->where(function ($outer) use (
+                $term, $ownCols, $relation, $relationCols, $userRelation, $userCols,
+                $orLike, $needle, $statusCols, $hasInspectionStatus, $notScrap, $assetStatusIs
+            ) {
                 foreach ($ownCols as $col) {
                     $outer->orWhere($col, 'like', $term);
                 }
@@ -60,6 +106,29 @@ class InspectionApiController extends Controller
                 }
                 if ($userRelation && ! empty($userCols)) {
                     $outer->orWhereHas($userRelation, fn ($u) => $orLike($u, $userCols));
+                }
+
+                // --- status-label keyword mapping ---
+                if ($hasInspectionStatus && $needle === 'inspected') {
+                    $outer->orWhere(function ($q) use ($notScrap) {
+                        $q->where('inspection_status', 'Y');
+                        $notScrap($q);
+                    });
+                } elseif ($hasInspectionStatus && in_array($needle, [
+                    'not inspected', 'not inspected yet', 'belum inspeksi', 'belum diinspeksi',
+                ], true)) {
+                    $outer->orWhere(function ($q) use ($notScrap) {
+                        $q->where(function ($w) {
+                            $w->whereNull('inspection_status')->orWhere('inspection_status', '!=', 'Y');
+                        });
+                        $notScrap($q);
+                    });
+                }
+
+                if ($needle === 'scrap') {
+                    $outer->orWhere(fn ($q) => $assetStatusIs($q, 'SCRAP'));
+                } elseif (in_array($needle, ['ready used', 'ready_used'], true)) {
+                    $outer->orWhere(fn ($q) => $assetStatusIs($q, 'READY_USED'));
                 }
             });
         }
