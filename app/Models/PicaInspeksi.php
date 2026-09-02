@@ -34,4 +34,24 @@ class PicaInspeksi extends Model
             'id'
         );
     }
+
+    public function inspeksiTower()
+    {
+        return $this->belongsTo(
+            InspeksiTower::class,
+            'inspeksi_id',
+            'id'
+        );
+    }
+
+    // TAMBAHKAN KEDUA RELASI INI
+    public function inspeksiNvr()
+    {
+        return $this->belongsTo(InspeksiNvr::class, 'inspeksi_id', 'id');
+    }
+
+    public function inspeksiCctv()
+    {
+        return $this->belongsTo(InspeksiCctv::class, 'inspeksi_id', 'id');
+    }
 }

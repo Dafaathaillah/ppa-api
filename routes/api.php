@@ -22,6 +22,17 @@ use App\Http\Controllers\Api\PengalihanAssetApiController;
 use App\Http\Controllers\Api\PicaInspeksiApiController;
 use App\Http\Controllers\Api\ScannerApiController;
 use App\Http\Controllers\Api\SiteApiController;
+
+use App\Http\Controllers\Api\InventoryAccessPointController;
+use App\Http\Controllers\Api\InventoryNvrController;
+use App\Http\Controllers\Api\InventoryPanelBoxController;
+use App\Http\Controllers\Api\InventorySwitchController;
+use App\Http\Controllers\Api\InventoryTabController;
+use App\Http\Controllers\Api\InventoryTowerController;
+use App\Http\Controllers\Api\InventoryWirelessController;
+use App\Http\Controllers\Api\PasswordBankAllSiteController;
+use App\Http\Controllers\Api\PasswordBankController;
+
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -148,4 +159,90 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/inspections/{type}', [InspectionApiController::class, 'index']);
     Route::get('/inspections/{type}/{id}', [InspectionApiController::class, 'show']);
     Route::match(['put', 'patch'], '/inspections/{type}/{id}', [InspectionApiController::class, 'update']);
+});
+
+Route::middleware('auth:sanctum')->prefix('password-bank/all-sites')->name('api.password-bank.all-sites.')->group(function () {
+    Route::get('categories', [PasswordBankAllSiteController::class, 'categories'])->name('categories');
+    Route::get('/', [PasswordBankAllSiteController::class, 'index'])->name('index');
+    Route::post('/', [PasswordBankAllSiteController::class, 'store'])->name('store');
+    Route::get('{passwordBank}', [PasswordBankAllSiteController::class, 'show'])->whereNumber('passwordBank')->name('show');
+    Route::match(['put', 'patch'], '{passwordBank}', [PasswordBankAllSiteController::class, 'update'])->whereNumber('passwordBank')->name('update');
+    Route::delete('{passwordBank}', [PasswordBankAllSiteController::class, 'destroy'])->whereNumber('passwordBank')->name('destroy');
+});
+
+Route::middleware('auth:sanctum')->prefix('password-bank')->name('api.password-bank.site.')->group(function () {
+    Route::get('categories', [PasswordBankController::class, 'categories'])->name('categories');
+    Route::get('/', [PasswordBankController::class, 'index'])->name('index');
+    Route::post('/', [PasswordBankController::class, 'store'])->name('store');
+    Route::get('{passwordBank}', [PasswordBankController::class, 'show'])->whereNumber('passwordBank')->name('show');
+    Route::match(['put', 'patch'], '{passwordBank}', [PasswordBankController::class, 'update'])->whereNumber('passwordBank')->name('update');
+    Route::delete('{passwordBank}', [PasswordBankController::class, 'destroy'])->whereNumber('passwordBank')->name('destroy');
+});
+
+Route::middleware('auth:sanctum')->prefix('inventory/tabs')->name('api.inventory.tabs.')->group(function () {
+    Route::get('options', [InventoryTabController::class, 'options'])->name('options');
+    Route::get('/', [InventoryTabController::class, 'index'])->name('index');
+    Route::post('/', [InventoryTabController::class, 'store'])->name('store');
+    Route::get('{tab}', [InventoryTabController::class, 'show'])->whereUuid('tab')->name('show');
+    Route::match(['put', 'patch', 'post'], '{tab}', [InventoryTabController::class, 'update'])->whereUuid('tab')->name('update');
+    Route::delete('{tab}', [InventoryTabController::class, 'destroy'])->whereUuid('tab')->name('destroy');
+});
+
+Route::middleware('auth:sanctum')->prefix('inventory/nvrs')->name('api.inventory.nvrs.')->group(function () {
+    Route::get('options', [InventoryNvrController::class, 'options'])->name('options');
+    Route::get('next-number', [InventoryNvrController::class, 'nextNumber'])->name('next-number');
+    Route::get('/', [InventoryNvrController::class, 'index'])->name('index');
+    Route::post('/', [InventoryNvrController::class, 'store'])->name('store');
+    Route::get('{nvr}', [InventoryNvrController::class, 'show'])->whereUuid('nvr')->name('show');
+    Route::match(['put', 'patch'], '{nvr}', [InventoryNvrController::class, 'update'])->whereUuid('nvr')->name('update');
+    Route::delete('{nvr}', [InventoryNvrController::class, 'destroy'])->whereUuid('nvr')->name('destroy');
+});
+
+Route::middleware('auth:sanctum')->prefix('inventory/panel-boxes')->name('api.inventory.panel-boxes.')->group(function () {
+    Route::get('options', [InventoryPanelBoxController::class, 'options'])->name('options');
+    Route::get('next-number', [InventoryPanelBoxController::class, 'nextNumber'])->name('next-number');
+    Route::get('/', [InventoryPanelBoxController::class, 'index'])->name('index');
+    Route::post('/', [InventoryPanelBoxController::class, 'store'])->name('store');
+    Route::get('{panelBox}', [InventoryPanelBoxController::class, 'show'])->whereUuid('panelBox')->name('show');
+    Route::match(['put', 'patch', 'post'], '{panelBox}', [InventoryPanelBoxController::class, 'update'])->whereUuid('panelBox')->name('update');
+    Route::delete('{panelBox}', [InventoryPanelBoxController::class, 'destroy'])->whereUuid('panelBox')->name('destroy');
+});
+
+Route::middleware('auth:sanctum')->prefix('inventory/towers')->name('api.inventory.towers.')->group(function () {
+    Route::get('options', [InventoryTowerController::class, 'options'])->name('options');
+    Route::get('/', [InventoryTowerController::class, 'index'])->name('index');
+    Route::post('/', [InventoryTowerController::class, 'store'])->name('store');
+    Route::get('{tower}', [InventoryTowerController::class, 'show'])->whereUuid('tower')->name('show');
+    Route::match(['put', 'patch'], '{tower}', [InventoryTowerController::class, 'update'])->whereUuid('tower')->name('update');
+    Route::delete('{tower}', [InventoryTowerController::class, 'destroy'])->whereUuid('tower')->name('destroy');
+});
+
+Route::middleware('auth:sanctum')->prefix('inventory/access-points')->name('api.inventory.access-points.')->group(function () {
+    Route::get('options', [InventoryAccessPointController::class, 'options'])->name('options');
+    Route::get('next-number', [InventoryAccessPointController::class, 'nextNumber'])->name('next-number');
+    Route::get('/', [InventoryAccessPointController::class, 'index'])->name('index');
+    Route::post('/', [InventoryAccessPointController::class, 'store'])->name('store');
+    Route::get('{device}', [InventoryAccessPointController::class, 'show'])->whereUuid('device')->name('show');
+    Route::match(['put', 'patch'], '{device}', [InventoryAccessPointController::class, 'update'])->whereUuid('device')->name('update');
+    Route::delete('{device}', [InventoryAccessPointController::class, 'destroy'])->whereUuid('device')->name('destroy');
+});
+
+Route::middleware('auth:sanctum')->prefix('inventory/switches')->name('api.inventory.switches.')->group(function () {
+    Route::get('options', [InventorySwitchController::class, 'options'])->name('options');
+    Route::get('next-number', [InventorySwitchController::class, 'nextNumber'])->name('next-number');
+    Route::get('/', [InventorySwitchController::class, 'index'])->name('index');
+    Route::post('/', [InventorySwitchController::class, 'store'])->name('store');
+    Route::get('{device}', [InventorySwitchController::class, 'show'])->whereUuid('device')->name('show');
+    Route::match(['put', 'patch'], '{device}', [InventorySwitchController::class, 'update'])->whereUuid('device')->name('update');
+    Route::delete('{device}', [InventorySwitchController::class, 'destroy'])->whereUuid('device')->name('destroy');
+});
+
+Route::middleware('auth:sanctum')->prefix('inventory/wireless')->name('api.inventory.wireless.')->group(function () {
+    Route::get('options', [InventoryWirelessController::class, 'options'])->name('options');
+    Route::get('next-number', [InventoryWirelessController::class, 'nextNumber'])->name('next-number');
+    Route::get('/', [InventoryWirelessController::class, 'index'])->name('index');
+    Route::post('/', [InventoryWirelessController::class, 'store'])->name('store');
+    Route::get('{device}', [InventoryWirelessController::class, 'show'])->whereUuid('device')->name('show');
+    Route::match(['put', 'patch'], '{device}', [InventoryWirelessController::class, 'update'])->whereUuid('device')->name('update');
+    Route::delete('{device}', [InventoryWirelessController::class, 'destroy'])->whereUuid('device')->name('destroy');
 });

@@ -11,9 +11,6 @@ class InvAp extends Model
 {
     use HasFactory, HasUuids, SoftDeletes;
 
-    protected $keyType = 'string';
-    public $incrementing = false;
-
     protected $fillable = [
         'max_id',
         'device_name',

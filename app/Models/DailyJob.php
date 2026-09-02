@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
@@ -12,6 +13,15 @@ use App\Models\User;
 
 class DailyJob extends Model
 {
+    public function scopeAssignedTo(Builder $query, User $user): Builder
+    {
+        return $query->where(function (Builder $query) use ($user) {
+            $query->whereJsonContains('crew', $user->id)
+                ->orWhereJsonContains('crew', (string) $user->id)
+                ->orWhereJsonContains('crew', $user->name);
+        });
+    }
+
     protected $fillable = [
         'code',
         'category_job',
@@ -33,12 +43,6 @@ class DailyJob extends Model
         'sarana',
         'created_by',
         'updated_by',
-        'is_approved',
-        'approved_by',
-        'approved_at',
-        // Kolom approval daily_jobs di DB live = varchar `approval_status`
-        // (NULL/'approved'); approveJob/approveBatch menulis ke kolom ini.
-        'approval_status',
     ];
 
     protected $casts = [
@@ -46,8 +50,6 @@ class DailyJob extends Model
         'date' => 'date',
         'start_progress' => 'datetime',
         'end_progress' => 'datetime',
-        'is_approved' => 'boolean',
-        'approved_at' => 'datetime',
     ];
 
     public function creator(): BelongsTo

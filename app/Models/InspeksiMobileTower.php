@@ -73,4 +73,13 @@ class InspeksiMobileTower extends Model
             'id'
         );
     }
+
+    public function devices()
+    {
+        return $this->hasMany(
+            InspeksiMobileTowerDevice::class,
+            'inspeksi_mobile_tower_id',
+            'id'
+        );
+    }
 }

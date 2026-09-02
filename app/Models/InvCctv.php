@@ -15,32 +15,35 @@ class InvCctv extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'max_id',
-        'asset_ho_number',
+        'inventory_number',
         'cctv_code',
+        'number_asset_ho',
         'location',
         'location_detail',
         'cctv_name',
         'cctv_brand',
-        'type_cctv',
+        'cctv_type',
         'mac_address',
         'ip_address',
-        'nvr_id',
-        'switch_id',
-        'date_of_inventory',
         'vlan',
+        'nvr_id',
         'uplink',
+        'inspection_remark',
         'status',
-        'note',
-        'last_status_ping',
-        'last_update_ping',
-        'site'
+        'remark',
+        'site',
+        'date_of_inventory',
+        'last_update_at',
+        'last_update_by',
     ];
 
-    public function switch()
+    public function inspeksis()
     {
-        return $this->belongsTo(InvSwitch::class, 'switch_id', 'id')->withDefault([
-            'inventory_number' => 'Data switch tidak ditemukan !',
-        ]);
+        return $this->hasMany(InspeksiCctv::class, 'cctv_id', 'id');
+    }
+    
+    public function nvr()
+    {
+        return $this->belongsTo(InvNvr::class, 'nvr_id', 'id');
     }
 }

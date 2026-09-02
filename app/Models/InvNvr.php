@@ -4,25 +4,46 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class InvNvr extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes, HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
     
     protected $fillable = [
-        'nvr_code',
+        'inventory_number',
+        'number_asset_ho',
         'nvr_name',
         'nvr_brand',
-        'type_nvr',
-        'number_of_channel',
+        'nvr_type',
         'mac_address',
         'ip_address',
+        'jumlah_hdd',
+        'total_capacity',
         'location',
+        'jumlah_channel',
+        'channel_used',
         'channel_free',
-        'remarks',
+        'inspection_remark',
         'status',
-        'last_status_ping',
-        'last_update_ping',
-        'details',
+        'remark',
+        'site',
+        'date_of_inventory',
+        'last_update_at',
+        'last_update_by',
     ];
+
+    public function inspeksis()
+    {
+        return $this->hasMany(InspeksiNvr::class, 'nvr_id', 'id');
+    }
+
+    public function cctvs()
+    {
+        return $this->hasMany(InvCctv::class, 'nvr_id', 'id');
+    }
 }

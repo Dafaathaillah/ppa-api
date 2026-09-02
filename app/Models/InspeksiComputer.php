@@ -17,6 +17,7 @@ class InspeksiComputer extends Model
         'created_date',
         'month',
         'year',
+        'inspection_at',
         'inspection_status',
         'inspection_image',
         'triwulan',
@@ -50,6 +51,7 @@ class InspeksiComputer extends Model
         'approved_by',
         'status_approval',
         'site',
+        'updated_at',
         'last_edited_by'
     ];
 
