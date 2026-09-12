@@ -22,7 +22,6 @@ use App\Http\Controllers\Api\PengalihanAssetApiController;
 use App\Http\Controllers\Api\PicaInspeksiApiController;
 use App\Http\Controllers\Api\ScannerApiController;
 use App\Http\Controllers\Api\SiteApiController;
-
 use App\Http\Controllers\Api\InventoryAccessPointController;
 use App\Http\Controllers\Api\InventoryNvrController;
 use App\Http\Controllers\Api\InventoryPanelBoxController;
@@ -32,6 +31,11 @@ use App\Http\Controllers\Api\InventoryTowerController;
 use App\Http\Controllers\Api\InventoryWirelessController;
 use App\Http\Controllers\Api\PasswordBankAllSiteController;
 use App\Http\Controllers\Api\PasswordBankController;
+use App\Http\Controllers\Api\SwitchInspectionController;
+use App\Http\Controllers\Api\WirelessInspectionController;
+use App\Http\Controllers\Api\MobileTowerInspectionController;
+use App\Http\Controllers\Api\PanelBoxInspectionController;
+use App\Http\Controllers\Api\AccessPointInspectionController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -245,4 +249,39 @@ Route::middleware('auth:sanctum')->prefix('inventory/wireless')->name('api.inven
     Route::get('{device}', [InventoryWirelessController::class, 'show'])->whereUuid('device')->name('show');
     Route::match(['put', 'patch'], '{device}', [InventoryWirelessController::class, 'update'])->whereUuid('device')->name('update');
     Route::delete('{device}', [InventoryWirelessController::class, 'destroy'])->whereUuid('device')->name('destroy');
+});
+
+Route::middleware('auth:sanctum')->prefix('inspections/access-points')->name('api.inspections.access-points.')->group(function () {
+    Route::get('/', [AccessPointInspectionController::class, 'index'])->name('index');
+    Route::get('{inspection}', [AccessPointInspectionController::class, 'show'])->whereUuid('inspection')->name('show');
+    Route::post('{inspection}/process', [AccessPointInspectionController::class, 'process'])->whereUuid('inspection')->name('process');
+    Route::post('{inspection}/approval', [AccessPointInspectionController::class, 'approval'])->whereUuid('inspection')->name('approval');
+});
+
+Route::middleware('auth:sanctum')->prefix('inspections/switches')->name('api.inspections.switches.')->group(function () {
+    Route::get('/', [SwitchInspectionController::class, 'index'])->name('index');
+    Route::get('{inspection}', [SwitchInspectionController::class, 'show'])->whereUuid('inspection')->name('show');
+    Route::post('{inspection}/process', [SwitchInspectionController::class, 'process'])->whereUuid('inspection')->name('process');
+    Route::post('{inspection}/approval', [SwitchInspectionController::class, 'approval'])->whereUuid('inspection')->name('approval');
+});
+
+Route::middleware('auth:sanctum')->prefix('inspections/wireless')->name('api.inspections.wireless.')->group(function () {
+    Route::get('/', [WirelessInspectionController::class, 'index'])->name('index');
+    Route::get('{inspection}', [WirelessInspectionController::class, 'show'])->whereUuid('inspection')->name('show');
+    Route::post('{inspection}/process', [WirelessInspectionController::class, 'process'])->whereUuid('inspection')->name('process');
+    Route::post('{inspection}/approval', [WirelessInspectionController::class, 'approval'])->whereUuid('inspection')->name('approval');
+});
+
+Route::middleware('auth:sanctum')->prefix('inspections/mobile-towers')->group(function () {
+    Route::get('/', [MobileTowerInspectionController::class, 'index']);
+    Route::get('{inspection}', [MobileTowerInspectionController::class, 'show'])->whereUuid('inspection');
+    Route::post('{inspection}/process', [MobileTowerInspectionController::class, 'process'])->whereUuid('inspection');
+    Route::post('{inspection}/approval', [MobileTowerInspectionController::class, 'approval'])->whereUuid('inspection');
+});
+
+Route::middleware('auth:sanctum')->prefix('inspections/panel-boxes')->group(function () {
+    Route::get('/', [PanelBoxInspectionController::class, 'index']);
+    Route::get('{inspection}', [PanelBoxInspectionController::class, 'show'])->whereUuid('inspection');
+    Route::post('{inspection}/process', [PanelBoxInspectionController::class, 'process'])->whereUuid('inspection');
+    Route::post('{inspection}/approval', [PanelBoxInspectionController::class, 'approval'])->whereUuid('inspection');
 });
