@@ -6,19 +6,24 @@ use App\Models\PicaInspeksi;
 
 class InspectionPicaNumber
 {
-    public static function next(string $site, string $prefix): string
+    public static function next(string $site, string $deviceCode): string
     {
-        $normalizedSite = strtoupper($site);
-        $numbers = PicaInspeksi::where('site', $site)
-            ->where('pica_number', 'like', "{$normalizedSite}/PICA/{$prefix}/%")
+        $prefix = sprintf('%s/PICA/%s/', strtoupper($site), strtoupper($deviceCode));
+        $highest = PicaInspeksi::query()
+            ->where('site', strtoupper($site))
+            ->where('pica_number', 'like', $prefix.'%')
             ->lockForUpdate()
             ->pluck('pica_number')
-            ->map(function ($number): int {
-                preg_match('/(\d+)$/', (string) $number, $matches);
+            ->reduce(function (int $maximum, ?string $number) use ($prefix): int {
+                if (! is_string($number) || ! str_starts_with($number, $prefix)) {
+                    return $maximum;
+                }
 
-                return (int) ($matches[1] ?? 0);
-            });
+                $suffix = substr($number, strlen($prefix));
 
-        return sprintf('%s/PICA/%s/%03d', $normalizedSite, $prefix, ($numbers->max() ?? 0) + 1);
+                return ctype_digit($suffix) ? max($maximum, (int) $suffix) : $maximum;
+            }, 0);
+
+        return $prefix.str_pad((string) ($highest + 1), 3, '0', STR_PAD_LEFT);
     }
 }

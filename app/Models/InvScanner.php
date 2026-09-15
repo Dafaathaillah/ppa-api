@@ -6,9 +6,6 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Ramsey\Uuid\Guid\Guid;
-use Ramsey\Uuid\Guid\GuidInterface;
-use Ramsey\Uuid\Guid\Guid\Guid7;
 
 class InvScanner extends Model
 {
@@ -30,6 +27,7 @@ class InvScanner extends Model
         'date_of_inventory',
         'status',
         'note',
-        'site'
+        'inspection_remark',
+        'site',
     ];
 }

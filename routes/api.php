@@ -34,7 +34,10 @@ use App\Http\Controllers\Api\PasswordBankController;
 use App\Http\Controllers\Api\SwitchInspectionController;
 use App\Http\Controllers\Api\WirelessInspectionController;
 use App\Http\Controllers\Api\MobileTowerInspectionController;
+use App\Http\Controllers\Api\ScannerInspectionController;
+use App\Http\Controllers\Api\ServerInspectionController;
 use App\Http\Controllers\Api\PanelBoxInspectionController;
+use App\Http\Controllers\Api\TowerInspectionController;
 use App\Http\Controllers\Api\AccessPointInspectionController;
 
 use Illuminate\Support\Facades\Route;
@@ -46,6 +49,27 @@ Route::prefix('auth')->group(function () {
         Route::get('/me', [AuthApiController::class, 'me']);
         Route::post('/logout', [AuthApiController::class, 'logout']);
     });
+});
+
+Route::middleware('auth:sanctum')->prefix('inspections/towers')->name('api.inspections.towers.')->group(function () {
+    Route::get('/', [TowerInspectionController::class, 'index'])->name('index');
+    Route::get('{inspection}', [TowerInspectionController::class, 'show'])->name('show');
+    Route::post('{inspection}/process', [TowerInspectionController::class, 'process'])->name('process');
+    Route::post('{inspection}/approval', [TowerInspectionController::class, 'approval'])->name('approval');
+});
+
+Route::middleware('auth:sanctum')->prefix('inspections/scanners')->name('api.inspections.scanners.')->group(function () {
+    Route::get('/', [ScannerInspectionController::class, 'index'])->name('index');
+    Route::get('{inspection}', [ScannerInspectionController::class, 'show'])->whereUuid('inspection')->name('show');
+    Route::post('{inspection}/process', [ScannerInspectionController::class, 'process'])->whereUuid('inspection')->name('process');
+    Route::post('{inspection}/approval', [ScannerInspectionController::class, 'approval'])->whereUuid('inspection')->name('approval');
+});
+
+Route::middleware('auth:sanctum')->prefix('inspections/servers')->name('api.inspections.servers.')->group(function () {
+    Route::get('/', [ServerInspectionController::class, 'index'])->name('index');
+    Route::get('{inspection}', [ServerInspectionController::class, 'show'])->whereUuid('inspection')->name('show');
+    Route::post('{inspection}/process', [ServerInspectionController::class, 'process'])->whereUuid('inspection')->name('process');
+    Route::post('{inspection}/approval', [ServerInspectionController::class, 'approval'])->whereUuid('inspection')->name('approval');
 });
 
 Route::middleware('auth:sanctum')->group(function () {
