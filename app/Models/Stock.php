@@ -11,7 +11,9 @@ class Stock extends Model
     use HasUuids, SoftDeletes;
 
     protected $table = 'stocks';
+
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     protected $fillable = [
@@ -28,6 +30,15 @@ class Stock extends Model
         'description',
         'is_active',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'current_qty' => 'integer',
+            'min_qty' => 'integer',
+            'is_active' => 'boolean',
+        ];
+    }
 
     public function transactions()
     {

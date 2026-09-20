@@ -33,6 +33,8 @@ use App\Http\Controllers\Api\PasswordBankAllSiteController;
 use App\Http\Controllers\Api\PasswordBankController;
 use App\Http\Controllers\Api\SwitchInspectionController;
 use App\Http\Controllers\Api\WirelessInspectionController;
+use App\Http\Controllers\Api\StockController as ApiStockController;
+use App\Http\Controllers\Api\StockTransactionController;
 use App\Http\Controllers\Api\MobileTowerInspectionController;
 use App\Http\Controllers\Api\ScannerInspectionController;
 use App\Http\Controllers\Api\ServerInspectionController;
@@ -49,6 +51,21 @@ Route::prefix('auth')->group(function () {
         Route::get('/me', [AuthApiController::class, 'me']);
         Route::post('/logout', [AuthApiController::class, 'logout']);
     });
+});
+
+Route::middleware('auth:sanctum')->prefix('inventory/stocks')->name('api.inventory.stocks.')->group(function () {
+    Route::get('options', [ApiStockController::class, 'options'])->name('options');
+    Route::get('next-code', [ApiStockController::class, 'nextCode'])->name('next-code');
+    Route::get('transactions', [StockTransactionController::class, 'index'])->name('transactions.index');
+    Route::post('transactions', [StockTransactionController::class, 'store'])->name('transactions.store');
+    Route::get('transactions/{transaction}', [StockTransactionController::class, 'show'])->whereUuid('transaction')->name('transactions.show');
+    Route::post('transfers', [StockTransactionController::class, 'transfer'])->name('transfers.store');
+    Route::post('adjustments/bulk', [StockTransactionController::class, 'bulkAdjust'])->name('adjustments.bulk');
+    Route::get('/', [ApiStockController::class, 'index'])->name('index');
+    Route::post('/', [ApiStockController::class, 'store'])->name('store');
+    Route::get('{stock}', [ApiStockController::class, 'show'])->whereUuid('stock')->name('show');
+    Route::match(['put', 'patch'], '{stock}', [ApiStockController::class, 'update'])->whereUuid('stock')->name('update');
+    Route::delete('{stock}', [ApiStockController::class, 'destroy'])->whereUuid('stock')->name('destroy');
 });
 
 Route::middleware('auth:sanctum')->prefix('inspections/towers')->name('api.inspections.towers.')->group(function () {
