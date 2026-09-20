@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Api\AduanApiController;
 use App\Http\Controllers\Api\AduanHoApiController;
+use App\Http\Controllers\Api\AssetMutationController;
+use App\Http\Controllers\Api\AssetDeliveryController;
 use App\Http\Controllers\Api\PengajuanAksesApiController;
 use App\Http\Controllers\Api\AuthApiController;
 use App\Http\Controllers\Api\ChartInspeksiApiController;
@@ -51,6 +53,36 @@ Route::prefix('auth')->group(function () {
         Route::get('/me', [AuthApiController::class, 'me']);
         Route::post('/logout', [AuthApiController::class, 'logout']);
     });
+});
+
+Route::middleware('auth:sanctum')->prefix('asset-deliveries')->name('api.asset-deliveries.')->group(function () {
+    Route::get('options', [AssetDeliveryController::class, 'options'])->name('options');
+    Route::get('laptops', [AssetDeliveryController::class, 'laptops'])->name('laptops');
+    Route::get('users', [AssetDeliveryController::class, 'users'])->name('users');
+    Route::get('next-inventory-code', [AssetDeliveryController::class, 'nextInventoryCode'])->name('next-code');
+    Route::post('import/preview', [AssetDeliveryController::class, 'importPreview'])->name('import.preview');
+    Route::post('import', [AssetDeliveryController::class, 'importStore'])->name('import.store');
+    Route::get('import/template', [AssetDeliveryController::class, 'template'])->name('import.template');
+    Route::get('/', [AssetDeliveryController::class, 'index'])->name('index');
+    Route::post('/', [AssetDeliveryController::class, 'store'])->name('store');
+    Route::get('{delivery}', [AssetDeliveryController::class, 'show'])->whereUuid('delivery')->name('show');
+    Route::post('{delivery}/receive', [AssetDeliveryController::class, 'receive'])->whereUuid('delivery')->name('receive');
+    Route::post('{delivery}/reject', [AssetDeliveryController::class, 'reject'])->whereUuid('delivery')->name('reject');
+    Route::delete('{delivery}', [AssetDeliveryController::class, 'destroy'])->whereUuid('delivery')->name('destroy');
+});
+
+Route::middleware('auth:sanctum')->prefix('asset-mutations')->name('api.asset-mutations.')->group(function () {
+    Route::get('options', [AssetMutationController::class, 'options'])->name('options');
+    Route::get('devices', [AssetMutationController::class, 'devices'])->name('devices');
+    Route::get('devices/{category}/{asset}/user', [AssetMutationController::class, 'deviceUser'])->whereUuid('asset')->name('devices.user');
+    Route::get('next-inventory-code', [AssetMutationController::class, 'nextInventoryCode'])->name('next-code');
+    Route::get('/', [AssetMutationController::class, 'index'])->name('index');
+    Route::post('/', [AssetMutationController::class, 'store'])->name('store');
+    Route::get('{mutation}', [AssetMutationController::class, 'show'])->whereUuid('mutation')->name('show');
+    Route::post('{mutation}', [AssetMutationController::class, 'update'])->whereUuid('mutation')->name('update');
+    Route::delete('{mutation}', [AssetMutationController::class, 'destroy'])->whereUuid('mutation')->name('destroy');
+    Route::post('{mutation}/accept', [AssetMutationController::class, 'accept'])->whereUuid('mutation')->name('accept');
+    Route::post('{mutation}/reject', [AssetMutationController::class, 'reject'])->whereUuid('mutation')->name('reject');
 });
 
 Route::middleware('auth:sanctum')->prefix('inventory/stocks')->name('api.inventory.stocks.')->group(function () {
