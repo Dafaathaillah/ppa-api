@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class RootCauseProblem extends Model
 {
-    protected $primaryKey = 'id_cause';
     use HasFactory;
+
+    protected $primaryKey = 'id_cause';
+
+    public $timestamps = false;
 }

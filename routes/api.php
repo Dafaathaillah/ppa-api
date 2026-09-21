@@ -42,6 +42,10 @@ use App\Http\Controllers\Api\ScannerInspectionController;
 use App\Http\Controllers\Api\ServerInspectionController;
 use App\Http\Controllers\Api\PanelBoxInspectionController;
 use App\Http\Controllers\Api\TowerInspectionController;
+use App\Http\Controllers\Api\VhmsUnitController;
+use App\Http\Controllers\UnitProblemVhmsController;
+use App\Http\Controllers\UnitVhmsController;
+use App\Http\Controllers\VhmsRepairHistoryController;
 use App\Http\Controllers\Api\AccessPointInspectionController;
 
 use Illuminate\Support\Facades\Route;
@@ -53,6 +57,25 @@ Route::prefix('auth')->group(function () {
         Route::get('/me', [AuthApiController::class, 'me']);
         Route::post('/logout', [AuthApiController::class, 'logout']);
     });
+});
+
+Route::middleware('auth:sanctum')->prefix('vhms/{site}')->name('api.vhms.')->group(function () {
+    Route::get('options', [VhmsUnitController::class, 'options'])->name('options');
+    Route::get('units', [UnitVhmsController::class, 'data'])->name('units.index');
+    Route::post('units', [VhmsUnitController::class, 'store'])->name('units.store');
+    Route::get('units/{unit}', [VhmsUnitController::class, 'show'])->whereNumber('unit')->name('units.show');
+    Route::match(['put', 'patch'], 'units/{unit}', [VhmsUnitController::class, 'update'])->whereNumber('unit')->name('units.update');
+    Route::delete('units/{unit}', [VhmsUnitController::class, 'destroy'])->whereNumber('unit')->name('units.destroy');
+    Route::get('payload', [UnitVhmsController::class, 'payload'])->name('payload');
+    Route::post('evidence/import', [UnitVhmsController::class, 'importEvidence'])->name('evidence.import');
+    Route::get('evidence/export', [UnitVhmsController::class, 'exportEvidence'])->name('evidence.export');
+    Route::get('evidence/template', [UnitVhmsController::class, 'evidenceTemplate'])->name('evidence.template');
+    Route::get('problems', [UnitProblemVhmsController::class, 'data'])->name('problems.index');
+    Route::get('problems/export', [UnitProblemVhmsController::class, 'export'])->name('problems.export');
+    Route::post('problems/{unit}/repairs', [UnitProblemVhmsController::class, 'store'])->whereNumber('unit')->name('problems.repairs.store');
+    Route::get('problems/{unit}/repairs', [UnitProblemVhmsController::class, 'history'])->whereNumber('unit')->name('problems.repairs.index');
+    Route::post('cases/{case}/complete', [UnitProblemVhmsController::class, 'complete'])->whereNumber('case')->name('cases.complete');
+    Route::get('repair-history', [VhmsRepairHistoryController::class, 'data'])->name('repair-history.index');
 });
 
 Route::middleware('auth:sanctum')->prefix('asset-deliveries')->name('api.asset-deliveries.')->group(function () {
