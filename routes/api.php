@@ -8,6 +8,9 @@ use App\Http\Controllers\Api\PengajuanAksesApiController;
 use App\Http\Controllers\Api\AuthApiController;
 use App\Http\Controllers\Api\ChartInspeksiApiController;
 use App\Http\Controllers\Api\DashboardAllSiteApiController;
+use App\Http\Controllers\Api\DailyServerMonitoringController;
+use App\Http\Controllers\Api\InventoryServerController;
+use App\Http\Controllers\Api\InventoryStarlinkController;
 use App\Http\Controllers\Api\DashboardApiController;
 use App\Http\Controllers\Api\DepartmentApiController;
 use App\Http\Controllers\Api\DeviceTokenApiController;
@@ -57,6 +60,16 @@ Route::prefix('auth')->group(function () {
         Route::get('/me', [AuthApiController::class, 'me']);
         Route::post('/logout', [AuthApiController::class, 'logout']);
     });
+});
+
+Route::middleware('auth:sanctum')->prefix('daily-server-monitorings')->name('api.daily-server-monitorings.')->group(function () {
+    Route::get('options', [DailyServerMonitoringController::class, 'options'])->name('options');
+    Route::post('approval', [DailyServerMonitoringController::class, 'approval'])->name('approval');
+    Route::get('/', [DailyServerMonitoringController::class, 'index'])->name('index');
+    Route::post('/', [DailyServerMonitoringController::class, 'store'])->name('store');
+    Route::get('{monitoring}', [DailyServerMonitoringController::class, 'show'])->whereUuid('monitoring')->name('show');
+    Route::match(['post', 'patch'], '{monitoring}', [DailyServerMonitoringController::class, 'update'])->whereUuid('monitoring')->name('update');
+    Route::delete('{monitoring}', [DailyServerMonitoringController::class, 'destroy'])->whereUuid('monitoring')->name('destroy');
 });
 
 Route::middleware('auth:sanctum')->prefix('vhms/{site}')->name('api.vhms.')->group(function () {
@@ -296,6 +309,26 @@ Route::middleware('auth:sanctum')->prefix('inventory/nvrs')->name('api.inventory
     Route::get('{nvr}', [InventoryNvrController::class, 'show'])->whereUuid('nvr')->name('show');
     Route::match(['put', 'patch'], '{nvr}', [InventoryNvrController::class, 'update'])->whereUuid('nvr')->name('update');
     Route::delete('{nvr}', [InventoryNvrController::class, 'destroy'])->whereUuid('nvr')->name('destroy');
+});
+
+Route::middleware('auth:sanctum')->prefix('inventory/servers')->name('api.inventory.servers.')->group(function () {
+    Route::get('options', [InventoryServerController::class, 'options'])->name('options');
+    Route::get('next-number', [InventoryServerController::class, 'nextNumber'])->name('next-number');
+    Route::get('/', [InventoryServerController::class, 'index'])->name('index');
+    Route::post('/', [InventoryServerController::class, 'store'])->name('store');
+    Route::get('{server}', [InventoryServerController::class, 'show'])->whereUuid('server')->name('show');
+    Route::match(['put', 'patch'], '{server}', [InventoryServerController::class, 'update'])->whereUuid('server')->name('update');
+    Route::delete('{server}', [InventoryServerController::class, 'destroy'])->whereUuid('server')->name('destroy');
+});
+
+Route::middleware('auth:sanctum')->prefix('inventory/starlinks')->name('api.inventory.starlinks.')->group(function () {
+    Route::get('options', [InventoryStarlinkController::class, 'options'])->name('options');
+    Route::get('next-number', [InventoryStarlinkController::class, 'nextNumber'])->name('next-number');
+    Route::get('/', [InventoryStarlinkController::class, 'index'])->name('index');
+    Route::post('/', [InventoryStarlinkController::class, 'store'])->name('store');
+    Route::get('{starlink}', [InventoryStarlinkController::class, 'show'])->whereUuid('starlink')->name('show');
+    Route::match(['put', 'patch'], '{starlink}', [InventoryStarlinkController::class, 'update'])->whereUuid('starlink')->name('update');
+    Route::delete('{starlink}', [InventoryStarlinkController::class, 'destroy'])->whereUuid('starlink')->name('destroy');
 });
 
 Route::middleware('auth:sanctum')->prefix('inventory/panel-boxes')->name('api.inventory.panel-boxes.')->group(function () {
