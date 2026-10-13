@@ -1,7 +1,9 @@
 # IT-PORTAL-HO to Mobile API Parity Report
 
-**Audit date:** 2026-10-13  
-**Portal source:** `IT-PORTAL-HO-PALING-BARU-9-2026`  
+**Audit date:** 2026-10-13
+
+**Portal source:** `IT-PORTAL-HO-PALING-BARU-9-2026`
+
 **API target:** `ppa-api-new`
 
 ## Executive summary
