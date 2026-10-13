@@ -1,56 +1,57 @@
 <?php
 
+use App\Http\Controllers\Api\AccessPointInspectionController;
 use App\Http\Controllers\Api\AduanApiController;
 use App\Http\Controllers\Api\AduanHoApiController;
-use App\Http\Controllers\Api\AssetMutationController;
 use App\Http\Controllers\Api\AssetDeliveryController;
-use App\Http\Controllers\Api\PengajuanAksesApiController;
+use App\Http\Controllers\Api\AssetMutationController;
 use App\Http\Controllers\Api\AuthApiController;
+use App\Http\Controllers\Api\CctvInspectionController;
 use App\Http\Controllers\Api\ChartInspeksiApiController;
-use App\Http\Controllers\Api\DashboardAllSiteApiController;
 use App\Http\Controllers\Api\DailyServerMonitoringController;
-use App\Http\Controllers\Api\InventoryServerController;
-use App\Http\Controllers\Api\InventoryStarlinkController;
+use App\Http\Controllers\Api\DashboardAllSiteApiController;
 use App\Http\Controllers\Api\DashboardApiController;
 use App\Http\Controllers\Api\DepartmentApiController;
 use App\Http\Controllers\Api\DeviceTokenApiController;
 use App\Http\Controllers\Api\GuestApiController;
 use App\Http\Controllers\Api\InspectionApiController;
 use App\Http\Controllers\Api\InspectionScheduleApiController;
-use App\Http\Controllers\Api\InventoryApiController;
-use App\Http\Controllers\Api\KpiInspeksiApiController;
-use App\Http\Controllers\Api\KpiResponseTimeApiController;
-use App\Http\Controllers\Api\KpiVhmsApiController;
-use App\Http\Controllers\Api\KpiAduanAnalysisApiController;
-use App\Http\Controllers\Api\OperationsApiController;
-use App\Http\Controllers\Api\PengalihanAssetApiController;
-use App\Http\Controllers\Api\PicaInspeksiApiController;
-use App\Http\Controllers\Api\ScannerApiController;
-use App\Http\Controllers\Api\SiteApiController;
 use App\Http\Controllers\Api\InventoryAccessPointController;
+use App\Http\Controllers\Api\InventoryApiController;
 use App\Http\Controllers\Api\InventoryNvrController;
 use App\Http\Controllers\Api\InventoryPanelBoxController;
+use App\Http\Controllers\Api\InventoryServerController;
+use App\Http\Controllers\Api\InventoryStarlinkController;
 use App\Http\Controllers\Api\InventorySwitchController;
 use App\Http\Controllers\Api\InventoryTabController;
 use App\Http\Controllers\Api\InventoryTowerController;
 use App\Http\Controllers\Api\InventoryWirelessController;
+use App\Http\Controllers\Api\KpiAduanAnalysisApiController;
+use App\Http\Controllers\Api\KpiInspeksiApiController;
+use App\Http\Controllers\Api\KpiResponseTimeApiController;
+use App\Http\Controllers\Api\KpiVhmsApiController;
+use App\Http\Controllers\Api\MobileTowerInspectionController;
+use App\Http\Controllers\Api\NvrInspectionController;
+use App\Http\Controllers\Api\OperationsApiController;
+use App\Http\Controllers\Api\PanelBoxInspectionController;
 use App\Http\Controllers\Api\PasswordBankAllSiteController;
 use App\Http\Controllers\Api\PasswordBankController;
-use App\Http\Controllers\Api\SwitchInspectionController;
-use App\Http\Controllers\Api\WirelessInspectionController;
-use App\Http\Controllers\Api\StockController as ApiStockController;
-use App\Http\Controllers\Api\StockTransactionController;
-use App\Http\Controllers\Api\MobileTowerInspectionController;
+use App\Http\Controllers\Api\PengajuanAksesApiController;
+use App\Http\Controllers\Api\PengalihanAssetApiController;
+use App\Http\Controllers\Api\PicaInspeksiApiController;
+use App\Http\Controllers\Api\ScannerApiController;
 use App\Http\Controllers\Api\ScannerInspectionController;
 use App\Http\Controllers\Api\ServerInspectionController;
-use App\Http\Controllers\Api\PanelBoxInspectionController;
+use App\Http\Controllers\Api\SiteApiController;
+use App\Http\Controllers\Api\StockController as ApiStockController;
+use App\Http\Controllers\Api\StockTransactionController;
+use App\Http\Controllers\Api\SwitchInspectionController;
 use App\Http\Controllers\Api\TowerInspectionController;
 use App\Http\Controllers\Api\VhmsUnitController;
+use App\Http\Controllers\Api\WirelessInspectionController;
 use App\Http\Controllers\UnitProblemVhmsController;
 use App\Http\Controllers\UnitVhmsController;
 use App\Http\Controllers\VhmsRepairHistoryController;
-use App\Http\Controllers\Api\AccessPointInspectionController;
-
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -203,14 +204,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/pengajuan-akses/{id}/approve', [PengajuanAksesApiController::class, 'approve']);
     Route::delete('/pengajuan-akses/{id}', [PengajuanAksesApiController::class, 'destroy']);
 
-    Route::get('/inventory/{type}/meta', [InventoryApiController::class, 'meta']);
-    Route::get('/inventory/{type}/generate-code', [InventoryApiController::class, 'generateCode']);
-    Route::get('/inventory/{type}', [InventoryApiController::class, 'index']);
-    Route::post('/inventory/{type}', [InventoryApiController::class, 'store']);
-    Route::get('/inventory/{type}/{id}', [InventoryApiController::class, 'show']);
-    Route::match(['put', 'patch'], '/inventory/{type}/{id}', [InventoryApiController::class, 'update']);
-    Route::delete('/inventory/{type}/{id}', [InventoryApiController::class, 'destroy']);
-
     Route::get('/kpi-vhms', [KpiVhmsApiController::class, 'index']);
     Route::get('/kpi-vhms/filter', [KpiVhmsApiController::class, 'filter']);
     Route::patch('/kpi-vhms/feedback', [KpiVhmsApiController::class, 'updateFeedback']);
@@ -269,9 +262,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/kpi-response-time', [KpiResponseTimeApiController::class, 'index']);
     Route::get('/kpi-inspeksi', [KpiInspeksiApiController::class, 'index']);
 
-    Route::get('/inspections/{type}', [InspectionApiController::class, 'index']);
-    Route::get('/inspections/{type}/{id}', [InspectionApiController::class, 'show']);
-    Route::match(['put', 'patch'], '/inspections/{type}/{id}', [InspectionApiController::class, 'update']);
 });
 
 Route::middleware('auth:sanctum')->prefix('password-bank/all-sites')->name('api.password-bank.all-sites.')->group(function () {
@@ -413,4 +403,37 @@ Route::middleware('auth:sanctum')->prefix('inspections/panel-boxes')->group(func
     Route::get('{inspection}', [PanelBoxInspectionController::class, 'show'])->whereUuid('inspection');
     Route::post('{inspection}/process', [PanelBoxInspectionController::class, 'process'])->whereUuid('inspection');
     Route::post('{inspection}/approval', [PanelBoxInspectionController::class, 'approval'])->whereUuid('inspection');
+});
+
+Route::middleware('auth:sanctum')->prefix('inspections/nvrs')->name('api.inspections.nvrs.')->group(function () {
+    Route::get('/', [NvrInspectionController::class, 'index'])->name('index');
+    Route::get('{inspection}', [NvrInspectionController::class, 'show'])->whereUuid('inspection')->name('show');
+    Route::post('{inspection}/process', [NvrInspectionController::class, 'process'])->whereUuid('inspection')->name('process');
+    Route::post('{inspection}/approval', [NvrInspectionController::class, 'approval'])->whereUuid('inspection')->name('approval');
+});
+
+Route::middleware('auth:sanctum')->prefix('inspections/cctv')->name('api.inspections.cctv.')->group(function () {
+    Route::get('/', [CctvInspectionController::class, 'index'])->name('index');
+    Route::get('{inspection}', [CctvInspectionController::class, 'show'])->whereUuid('inspection')->name('show');
+    Route::post('{inspection}/process', [CctvInspectionController::class, 'process'])->whereUuid('inspection')->name('process');
+    Route::post('{inspection}/approval', [CctvInspectionController::class, 'approval'])->whereUuid('inspection')->name('approval');
+});
+
+// Keep the generic inventory registry after every specialized inventory route.
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/inventory/{type}/meta', [InventoryApiController::class, 'meta']);
+    Route::get('/inventory/{type}/generate-code', [InventoryApiController::class, 'generateCode']);
+    Route::get('/inventory/{type}', [InventoryApiController::class, 'index']);
+    Route::post('/inventory/{type}', [InventoryApiController::class, 'store']);
+    Route::get('/inventory/{type}/{id}', [InventoryApiController::class, 'show']);
+    Route::match(['put', 'patch'], '/inventory/{type}/{id}', [InventoryApiController::class, 'update']);
+    Route::delete('/inventory/{type}/{id}', [InventoryApiController::class, 'destroy']);
+});
+
+// Keep the generic inspection registry after every specialized inspection route.
+// Otherwise values such as `nvrs` and `cctv` are consumed as `{type}` first.
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/inspections/{type}', [InspectionApiController::class, 'index']);
+    Route::get('/inspections/{type}/{id}', [InspectionApiController::class, 'show']);
+    Route::match(['put', 'patch'], '/inspections/{type}/{id}', [InspectionApiController::class, 'update']);
 });
