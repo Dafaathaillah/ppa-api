@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\InspeksiMobileTower;
 use App\Models\PicaInspeksi;
 use App\Services\InspectionAttachedDeviceProcessor;
+use App\Support\Api\SiteContext;
 use App\Support\InspectionPicaNumber;
 use App\Support\TowerInspectionPhotoStorage;
 use Illuminate\Http\JsonResponse;
@@ -25,7 +26,14 @@ class MobileTowerInspectionController extends Controller
             'status_approval' => ['nullable', 'string', 'max:255'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
-        $data = InspeksiMobileTower::query()->with(['mt', 'devices'])
+        if (! SiteContext::canAccessAnySite($request)) {
+            $filters['site'] = SiteContext::resolve($request);
+        }
+        $query = InspeksiMobileTower::query()->with(['mt', 'devices']);
+        if (! SiteContext::canAccessAnySite($request)) {
+            SiteContext::apply($query, 'site', SiteContext::resolve($request));
+        }
+        $data = $query
             ->when($filters['site'] ?? null, fn ($q, $site) => $q->where('site', strtoupper($site)))
             ->when($filters['month'] ?? null, fn ($q, $month) => $q->where('month', $month))
             ->when($filters['year'] ?? null, fn ($q, $year) => $q->where('year', $year))
@@ -36,9 +44,13 @@ class MobileTowerInspectionController extends Controller
         return response()->json($data);
     }
 
-    public function show(string $inspection): JsonResponse
+    public function show(Request $request, string $inspection): JsonResponse
     {
-        return response()->json(['data' => InspeksiMobileTower::with(['mt', 'devices'])->findOrFail($inspection)]);
+        $query = InspeksiMobileTower::with(['mt', 'devices']);
+        if (! SiteContext::canAccessAnySite($request)) {
+            SiteContext::apply($query, 'site', SiteContext::resolve($request));
+        }
+        return response()->json(['data' => $query->findOrFail($inspection)]);
     }
 
     public function process(Request $request, string $inspection): JsonResponse
@@ -129,7 +141,7 @@ class MobileTowerInspectionController extends Controller
         $record = InspeksiMobileTower::findOrFail($inspection);
         $this->assertCanApprove($request, $record->site);
         abort_unless($record->inspection_status === 'Y', 422, 'Data ini belum diinspeksi.');
-        $record->update(['approved_by' => $request->user()->name, 'status_approval' => $validated['approval_type'] === 'accept' ? 'approve' : 'reject']);
+        $record->update(['approved_by' => $request->user()->name, 'status_approval' => $validated['approval_type'] === 'accept' ? 'approved' : 'reject']);
 
         return response()->json(['data' => InspeksiMobileTower::with(['mt', 'devices'])->findOrFail($inspection)]);
     }

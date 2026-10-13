@@ -3,12 +3,26 @@
 namespace App\Http\Controllers\Api\Concerns;
 
 use App\Models\PicaInspeksi;
+use App\Support\Api\SiteContext;
 use App\Support\TowerInspectionPhotoStorage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 trait ProcessesAssetInspection
 {
+    protected function scopeInspectionAccess(Builder $query, Request $request, ?string $siteColumn = 'site', ?string $relation = null): Builder
+    {
+        if (SiteContext::canAccessAnySite($request)) {
+            return $query;
+        }
+
+        $site = SiteContext::resolve($request);
+
+        return $siteColumn
+            ? SiteContext::apply($query, $siteColumn, $site)
+            : $query->whereHas($relation ?? 'tower', fn (Builder $related) => SiteContext::apply($related, 'site', $site));
+    }
+
     protected function inspectionFilters(Request $request): array
     {
         return $request->validate([

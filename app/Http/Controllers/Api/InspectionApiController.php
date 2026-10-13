@@ -11,6 +11,7 @@ use App\Support\Api\SiteContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 
 class InspectionApiController extends Controller
 {
@@ -278,6 +279,51 @@ class InspectionApiController extends Controller
             'message' => 'Inspection updated successfully.',
             'data' => $inspection->fresh(),
         ]);
+    }
+
+    public function process(Request $request, string $type, string $id)
+    {
+        $config = InspectionRegistry::get($type);
+        $inspection = $this->authorizedInspectionQuery($request, $config)->findOrFail($id);
+        $site = strtoupper((string) $inspection->getAttribute($config['site_column']));
+        abort_unless(
+            in_array($request->user()?->role, ['ict_technician', 'ict_group_leader'], true)
+            && strtoupper((string) $request->user()?->site) === $site,
+            403,
+            'Anda hanya dapat memproses inspeksi site sendiri.'
+        );
+
+        $request->merge([
+            'inspection_status' => 'Y',
+            'inspection_at' => $inspection->isFillable('inspection_at') ? now()->toDateTimeString() : $request->input('inspection_at'),
+            'inspector' => $request->user()->name,
+        ]);
+
+        return $this->update($request, $type, $id);
+    }
+
+    public function approval(Request $request, string $type, string $id)
+    {
+        $validated = $request->validate([
+            'approval_type' => ['required', Rule::in(['accept', 'reject'])],
+        ]);
+        $config = InspectionRegistry::get($type);
+        $inspection = $this->authorizedInspectionQuery($request, $config)->findOrFail($id);
+        $site = strtoupper((string) $inspection->getAttribute($config['site_column']));
+        abort_unless(
+            $request->user()?->role === 'ict_group_leader'
+            && strtoupper((string) $request->user()?->site) === $site,
+            403,
+            'Group Leader hanya dapat melakukan approval untuk site sendiri.'
+        );
+        abort_unless(in_array($inspection->getAttribute('inspection_status'), ['Y', 'sudah_inspeksi'], true), 422, 'Data ini belum diinspeksi.');
+
+        $inspection->update([
+            'approved_by' => $request->user()->name,
+            'status_approval' => $validated['approval_type'] === 'accept' ? 'approved' : 'reject',
+        ]);
+
+        return response()->json(['data' => $inspection->fresh()]);
     }
 
     private function authorizedInspectionQuery(Request $request, array $config)

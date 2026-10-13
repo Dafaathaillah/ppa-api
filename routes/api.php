@@ -434,6 +434,8 @@ Route::middleware('auth:sanctum')->group(function () {
 // Otherwise values such as `nvrs` and `cctv` are consumed as `{type}` first.
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/inspections/{type}', [InspectionApiController::class, 'index']);
+    Route::post('/inspections/{type}/{id}/process', [InspectionApiController::class, 'process']);
+    Route::post('/inspections/{type}/{id}/approval', [InspectionApiController::class, 'approval']);
     Route::get('/inspections/{type}/{id}', [InspectionApiController::class, 'show']);
     Route::match(['put', 'patch'], '/inspections/{type}/{id}', [InspectionApiController::class, 'update']);
 });

@@ -58,12 +58,13 @@ The API provides the equivalent site-scoped list/detail, CCTV checklist processi
 - Wirelless (portal spelling retained for compatibility)
 - Scanner
 - Server
+- Tower
 - NVR
 - CCTV
 
-Default queries hide `CLOSE`/`CLOSED` findings. Explicit `status_pica` filtering, date filtering, NVR PICA relations, and CCTV nested-finding filtering are supported. `GET /api/pica-inspeksi/meta` now returns `device_types` for Flutter dropdowns. Detail and update requests may pass `device_type=NVR` or `device_type=CCTV` to avoid ambiguous cross-table identifiers; CCTV updates also require `finding_id`. The previous detail fallback behavior remains available.
+Default queries hide `CLOSE`/`CLOSED` findings. Explicit `status_pica` filtering, date filtering, NVR PICA relations, and CCTV nested-finding filtering are supported. `GET /api/pica-inspeksi/meta` now returns `device_types` for Flutter dropdowns. Detail and update requests use an explicit `device_type`, preventing coincidentally matching UUIDs from resolving to another inspection table; CCTV updates also require `finding_id`.
 
-The portal provides list support for Access Point, Switch, Wirelless, Scanner, and Server, but its detail/update resolver does not implement those types. Their API support is therefore list/filter only rather than invented behavior.
+PICA updates now synchronize common finding, action, due-date, status, remark, inspector, and image fields back to Laptop, Computer, Printer, Panel Box, Access Point, Switch, Wirelless, Scanner, Server, Tower, NVR, and CCTV inspection data. Mobile Tower retains its established PICA-backed flow. Standard inspection processing preserves closed PICA history and deletes the linked PICA only when findings are cleared. Uploaded PICA images are stored as disk-relative paths.
 
 ### Route precedence
 
@@ -98,11 +99,11 @@ Existing Asset Delivery and Asset Mutation controllers referenced classes missin
 | Domain | Status | Notes |
 |---|---|---|
 | Inventory | API present; route precedence fixed | Generic device CRUD plus specialized Tab, NVR, server, Starlink, panel box, tower, stock, AP, switch, and wireless APIs. |
-| Inspeksi | API coverage completed for menu types with source controllers | NVR and CCTV added; existing laptop/computer/printer/mobile tower/AP/switch/wireless/scanner/server/panel box/tower APIs retained. |
+| Inspeksi | API coverage completed for menu types with source controllers | Reads are site-scoped; process/approval exists for specialized and registry-backed devices; accepted approvals are normalized to `approved`. |
 | Operation | Existing API retained | Jobs, monitoring, unscheduled jobs, asset transfer/delivery/mutation, daily server monitoring, and password bank routes exist. Missing asset helper classes restored. |
 | VHMS | Partial; known missing controller | List, payload, evidence, problems, repairs, completion, and history routes exist. CRUD/options controller remains report-only. |
 | Performance | Existing API retained | KPI response time, KPI inspection, KPI VHMS, complaint analysis, dashboard, and inspection chart routes exist. |
-| PICA | Expanded | All portal list types accepted; NVR/CCTV list and detail normalization added; meta options added. |
+| PICA | Expanded | All inspection device types, including Tower, are accepted; explicit device resolution and bidirectional inspection synchronization added. |
 
 ## Tests added
 
@@ -110,6 +111,8 @@ Existing Asset Delivery and Asset Mutation controllers referenced classes missin
 - `NvrInspectionApiTest`: site-scoped list, process, inventory write-back, and cross-site hiding.
 - `CctvInspectionApiTest`: list, process, inventory write-back, and group-leader approval.
 - `PicaVideoInspectionApiTest`: Flutter meta options, NVR open/closed filtering and detail, CCTV finding-status filtering and detail.
+- `InspectionSiteAuthorizationTest`: cross-site list and detail protection for the shared specialized-controller flow.
+- `GenericInspectionRouteTest`: registry-backed process/approval endpoints and specialized-route precedence.
 
 The focused tests use an isolated SQLite schema and do not depend on the unavailable local MySQL service.
 

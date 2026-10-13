@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Concerns\ProcessesAssetInspection;
 use App\Http\Controllers\Controller;
 use App\Models\PicaInspeksi;
 use App\Support\InspectionPicaNumber;
+use App\Support\Api\SiteContext;
 use App\Support\TowerInspectionPhotoStorage;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -42,8 +43,12 @@ abstract class AbstractSimpleAssetInspectionController extends Controller
     public function index(Request $request): JsonResponse
     {
         $filters = $this->inspectionFilters($request);
+        if (! SiteContext::canAccessAnySite($request)) {
+            $filters['site'] = SiteContext::resolve($request);
+        }
         $model = $this->modelClass();
         $query = $model::query()->with($this->eagerLoads());
+        $this->scopeInspectionAccess($query, $request);
         $this->applyFilters($query, $filters);
         $data = $query->orderByDesc('year')->orderByDesc('month')->orderByDesc('created_at')
             ->paginate($filters['per_page'] ?? 15)->through(fn (Model $item) => $this->resource($item));
@@ -51,9 +56,9 @@ abstract class AbstractSimpleAssetInspectionController extends Controller
         return response()->json($data);
     }
 
-    public function show(string $inspection): JsonResponse
+    public function show(Request $request, string $inspection): JsonResponse
     {
-        return response()->json(['data' => $this->resource($this->find($inspection))]);
+        return response()->json(['data' => $this->resource($this->find($inspection, $request))]);
     }
 
     public function process(Request $request, string $inspection): JsonResponse
@@ -70,7 +75,7 @@ abstract class AbstractSimpleAssetInspectionController extends Controller
             $rules[$field] = ['required', 'string', 'max:255'];
         }
         $validated = $request->validate($rules);
-        $record = $this->find($inspection);
+        $record = $this->find($inspection, $request);
         $site = $this->site($record);
         $this->assertCanProcess($request, $site);
         $photos = new TowerInspectionPhotoStorage;
@@ -79,11 +84,10 @@ abstract class AbstractSimpleAssetInspectionController extends Controller
             DB::transaction(function () use ($request, $validated, $record, $site, $photos): void {
                 $remark = $validated[$this->remarkField()] ?? null;
                 $hasFinding = filled($validated['temuan'] ?? null);
-                $hasOpenFinding = $hasFinding && strtoupper((string) ($validated['findings_status'] ?? '')) !== 'CLOSE';
                 $findingPhoto = $this->storedPhoto($request, 'image_temuan', $photos, $record->findings_image);
                 $actionPhoto = $this->storedPhoto($request, 'image_tindakan', $photos, $record->action_image);
                 $inspectionPhoto = $this->storedPhoto($request, 'image_inspeksi', $photos, $record->inspection_image);
-                $number = $hasOpenFinding ? ($record->pica_number ?: InspectionPicaNumber::next($site, $this->picaCode())) : null;
+                $number = $hasFinding ? ($record->pica_number ?: InspectionPicaNumber::next($site, $this->picaCode())) : null;
                 $inventory = $record->getRelation($this->relation());
                 $inventoryData = ['status' => $validated['inventory_status']];
                 if ($this->deviceType() === 'server') {
@@ -103,7 +107,7 @@ abstract class AbstractSimpleAssetInspectionController extends Controller
                 }
                 $record->update($data);
                 $pica = $this->picaFor((string) $record->id, $this->picaCode());
-                if (! $hasOpenFinding) {
+                if (! $hasFinding) {
                     $pica?->delete();
 
                     return;
@@ -118,25 +122,29 @@ abstract class AbstractSimpleAssetInspectionController extends Controller
             throw $exception;
         }
 
-        return $this->show($inspection);
+        return $this->show($request, $inspection);
     }
 
     public function approval(Request $request, string $inspection): JsonResponse
     {
         $validated = $request->validate(['approval_type' => ['required', Rule::in(['accept', 'reject'])]]);
-        $record = $this->find($inspection);
+        $record = $this->find($inspection, $request);
         $this->assertCanApprove($request, $this->site($record));
         abort_unless(in_array($record->inspection_status, ['Y', 'sudah_inspeksi'], true), 422, 'Data ini belum diinspeksi.');
         $record->update(['approved_by' => $request->user()->name, 'status_approval' => $validated['approval_type'] === 'accept' ? 'approved' : 'reject']);
 
-        return $this->show($inspection);
+        return $this->show($request, $inspection);
     }
 
-    protected function find(string $id): Model
+    protected function find(string $id, ?Request $request = null): Model
     {
         $model = $this->modelClass();
+        $query = $model::with($this->eagerLoads());
+        if ($request) {
+            $this->scopeInspectionAccess($query, $request);
+        }
 
-        return $model::with($this->eagerLoads())->findOrFail($id);
+        return $query->findOrFail($id);
     }
 
     protected function site(Model $record): string

@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Concerns\ProcessesAssetInspection;
 use App\Http\Controllers\Controller;
 use App\Models\InspeksiTower;
 use App\Models\PicaInspeksi;
+use App\Support\Api\SiteContext;
 use App\Support\InspectionPicaNumber;
 use App\Support\TowerInspectionPhotoStorage;
 use Illuminate\Http\JsonResponse;
@@ -21,7 +22,11 @@ class TowerInspectionController extends Controller
     public function index(Request $request): JsonResponse
     {
         $filters = $this->inspectionFilters($request);
+        if (! SiteContext::canAccessAnySite($request)) {
+            $filters['site'] = SiteContext::resolve($request);
+        }
         $query = InspeksiTower::query()->with(['tower.category']);
+        $this->scopeInspectionAccess($query, $request, null, 'tower');
         $this->applyFilters($query, $filters, null);
         $data = $query->orderByDesc('year')->orderByDesc('month')->orderByDesc('created_at')
             ->paginate($filters['per_page'] ?? 15)->through(fn (InspeksiTower $item) => $this->resource($item));
@@ -29,9 +34,9 @@ class TowerInspectionController extends Controller
         return response()->json($data);
     }
 
-    public function show(string $inspection): JsonResponse
+    public function show(Request $request, string $inspection): JsonResponse
     {
-        return response()->json(['data' => $this->resource($this->find($inspection))]);
+        return response()->json(['data' => $this->resource($this->find($inspection, $request))]);
     }
 
     public function process(Request $request, string $inspection): JsonResponse
@@ -50,7 +55,7 @@ class TowerInspectionController extends Controller
             'temuan.*.tindak_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
             'lampiran' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
         ]);
-        $record = $this->find($inspection);
+        $record = $this->find($inspection, $request);
         $site = strtoupper((string) $record->tower->site);
         $this->assertCanProcess($request, $site);
         $photos = new TowerInspectionPhotoStorage;
@@ -74,8 +79,8 @@ class TowerInspectionController extends Controller
                         ? $photos->store($request->file("temuan.$index.tindak_image"))
                         : ($existingActionImages[$index] ?? null);
                 }
-                $hasOpenFinding = $findings !== [] && collect($statuses)->contains(fn ($status) => strtoupper((string) $status) !== 'CLOSE');
-                $number = $hasOpenFinding ? ($record->pica_number ?: InspectionPicaNumber::next($site, 'TWR')) : null;
+                $hasFinding = $findings !== [];
+                $number = $hasFinding ? ($record->pica_number ?: InspectionPicaNumber::next($site, 'TWR')) : null;
                 $record->tower->update(['status' => $validated['inventory_status'], 'location' => $validated['lokasi'] ?? $record->tower->location,
                     'detail_location' => $validated['detail_lokasi'] ?? $record->tower->detail_location, 'remark_inspeksi' => $validated['remark'] ?? null]);
                 $inspectionData = ['worthiness' => $validated['kelayakan'] ?? null, 'kelayakan' => $validated['kelayakan'] ?? null,
@@ -90,7 +95,7 @@ class TowerInspectionController extends Controller
                 $columns = array_flip(Schema::getColumnListing('inspeksi_towers'));
                 $record->forceFill(array_intersect_key($inspectionData, $columns))->save();
                 $pica = $this->picaFor((string) $record->id, 'TWR');
-                if (! $hasOpenFinding) {
+                if (! $hasFinding) {
                     $pica?->delete();
 
                     return;
@@ -105,23 +110,27 @@ class TowerInspectionController extends Controller
             throw $exception;
         }
 
-        return $this->show($inspection);
+        return $this->show($request, $inspection);
     }
 
     public function approval(Request $request, string $inspection): JsonResponse
     {
         $validated = $request->validate(['approval_type' => ['required', Rule::in(['accept', 'reject'])]]);
-        $record = $this->find($inspection);
+        $record = $this->find($inspection, $request);
         $this->assertCanApprove($request, (string) $record->tower->site);
         abort_unless(in_array($record->inspection_status, ['Y', 'sudah_inspeksi'], true), 422, 'Data ini belum diinspeksi.');
-        $record->update(['approved_by' => $request->user()->name, 'status_approval' => $validated['approval_type'] === 'accept' ? 'approve' : 'reject']);
+        $record->update(['approved_by' => $request->user()->name, 'status_approval' => $validated['approval_type'] === 'accept' ? 'approved' : 'reject']);
 
-        return $this->show($inspection);
+        return $this->show($request, $inspection);
     }
 
-    private function find(string $id): InspeksiTower
+    private function find(string $id, ?Request $request = null): InspeksiTower
     {
-        return InspeksiTower::with(['tower.category'])->findOrFail($id);
+        $query = InspeksiTower::with(['tower.category']);
+        if ($request) {
+            $this->scopeInspectionAccess($query, $request, null, 'tower');
+        }
+        return $query->findOrFail($id);
     }
 
     private function resource(InspeksiTower $record): array

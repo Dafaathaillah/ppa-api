@@ -28,7 +28,8 @@ class PicaVideoInspectionApiTest extends TestCase
     {
         $this->getJson('/api/pica-inspeksi/meta?site=BIB')->assertOk()
             ->assertJsonFragment(['value' => 'NVR', 'label' => 'NVR'])
-            ->assertJsonFragment(['value' => 'CCTV', 'label' => 'CCTV']);
+            ->assertJsonFragment(['value' => 'CCTV', 'label' => 'CCTV'])
+            ->assertJsonFragment(['value' => 'Tower', 'label' => 'Tower']);
     }
 
     public function test_nvr_pica_is_supported_and_closed_items_are_hidden_by_default(): void

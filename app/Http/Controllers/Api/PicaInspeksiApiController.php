@@ -7,11 +7,13 @@ use App\Models\InspeksiAccessPoint;
 use App\Models\InspeksiCctv;
 use App\Models\InspeksiComputer;
 use App\Models\InspeksiLaptop;
+use App\Models\InspeksiMobileTower;
 use App\Models\InspeksiPanelBoxNetwork;
 use App\Models\InspeksiPrinter;
 use App\Models\InspeksiScanner;
 use App\Models\InspeksiServer;
 use App\Models\InspeksiSwitch;
+use App\Models\InspeksiTower;
 use App\Models\InspeksiWirelless;
 use App\Models\PicaInspeksi;
 use App\Models\User;
@@ -23,7 +25,7 @@ use Illuminate\Validation\Rule;
 
 class PicaInspeksiApiController extends Controller
 {
-    private const DEVICE_TYPES = ['Laptop', 'Computer', 'Mobile Tower', 'Printer', 'Panel Box', 'Access Point', 'Switch', 'Wirelless', 'Scanner', 'Server', 'NVR', 'CCTV'];
+    private const DEVICE_TYPES = ['Laptop', 'Computer', 'Mobile Tower', 'Printer', 'Panel Box', 'Access Point', 'Switch', 'Wirelless', 'Scanner', 'Server', 'Tower', 'NVR', 'CCTV'];
 
     public function meta(Request $request)
     {
@@ -73,6 +75,9 @@ class PicaInspeksiApiController extends Controller
             }),
             'Scanner' => InspeksiScanner::where('site', $site)->whereNotNull('findings_image')->whereHas('Scanner')->with('Scanner'),
             'Server' => InspeksiServer::where('site', $site)->whereNotNull('findings_image')->whereHas('Server')->with('Server'),
+            'Tower' => tap(InspeksiTower::whereHas('tower', fn ($tower) => $tower->where('site', $site))->whereNotNull('findings')->with('tower'), function () use (&$dateColumn): void {
+                $dateColumn = 'created_at';
+            }),
             'NVR' => tap(PicaInspeksi::where('site', $site)->whereHas('inspeksiNvr')->whereHas('inspeksiNvr.invNvr')->with(['inspeksiNvr', 'inspeksiNvr.invNvr']), function () use (&$dateColumn, &$statusColumn): void {
                 $dateColumn = 'created_at';
                 $statusColumn = 'status_pica';
@@ -124,7 +129,20 @@ class PicaInspeksiApiController extends Controller
     {
         SiteContext::authorizeWrite($request, SiteContext::resolve($request));
 
-        $params = $request->all();
+        $params = $request->validate([
+            'device_type' => ['required', Rule::in(self::DEVICE_TYPES)],
+            'site' => ['nullable', 'string'],
+            'temuan' => ['nullable', 'string'],
+            'tindakan' => ['nullable', 'string'],
+            'due_date' => ['nullable', 'date'],
+            'findings_status' => ['nullable', 'string'],
+            'remark' => ['nullable', 'string'],
+            'inspector' => ['nullable', 'string'],
+            'finding_id' => ['nullable', 'uuid'],
+            'image_temuan' => ['nullable', 'image', 'max:10240'],
+            'image_tindakan' => ['nullable', 'image', 'max:10240'],
+            'image_inspeksi' => ['nullable', 'image', 'max:10240'],
+        ]);
         $data = [
             'findings' => $params['temuan'] ?? null,
             'findings_action' => $params['tindakan'] ?? null,
@@ -150,17 +168,17 @@ class PicaInspeksiApiController extends Controller
         $this->authorizeRecordSite($request, $existing);
 
         if ($request->hasFile('image_temuan')) {
-            $data['findings_image'] = url('storage/'.ImageOptimizerService::storeAndOptimize($request->file('image_temuan'), 'images'));
+            $data['findings_image'] = ImageOptimizerService::storeAndOptimize($request->file('image_temuan'), 'images');
             $dataPica['foto_temuan'] = $data['findings_image'];
         }
 
         if ($request->hasFile('image_tindakan')) {
-            $data['action_image'] = url('storage/'.ImageOptimizerService::storeAndOptimize($request->file('image_tindakan'), 'images'));
+            $data['action_image'] = ImageOptimizerService::storeAndOptimize($request->file('image_tindakan'), 'images');
             $dataPica['foto_tindakan'] = $data['action_image'];
         }
 
         if ($request->hasFile('image_inspeksi')) {
-            $data['inspection_image'] = url('storage/'.ImageOptimizerService::storeAndOptimize($request->file('image_inspeksi'), 'images'));
+            $data['inspection_image'] = ImageOptimizerService::storeAndOptimize($request->file('image_inspeksi'), 'images');
         }
 
         if (($params['device_type'] ?? null) === 'NVR') {
@@ -196,22 +214,24 @@ class PicaInspeksiApiController extends Controller
             PicaInspeksi::updateOrCreate(['inspeksi_id' => $id], $dataPica);
         }
 
-        if ($record = InspeksiLaptop::find($id)) {
-            $this->authorizeRecordSite($request, $record);
-            $record->update($data);
-        } elseif ($record = InspeksiPrinter::find($id)) {
-            $this->authorizeRecordSite($request, $record);
-            $record->update($data);
-        } elseif ($record = InspeksiComputer::find($id)) {
-            $this->authorizeRecordSite($request, $record);
-            $record->update($data);
-        } elseif ($record = PicaInspeksi::with('inspeksiMt.mt')->find($id)) {
+        if (($params['device_type'] ?? null) === 'Mobile Tower') {
+            $record = PicaInspeksi::with('inspeksiMt.mt')->find($id);
+            abort_if(! $record, 404, 'Data inspeksi tidak ditemukan');
             $this->authorizeRecordSite($request, $record);
             $record->inspeksiMt?->mt?->update([
                 'inspection_remark' => $params['remark'] ?? null,
             ]);
         } else {
-            abort(404, 'Data inspeksi tidak ditemukan');
+            $record = $this->standardInspection($params['device_type'], $id);
+            abort_if(! $record, 404, 'Data inspeksi tidak ditemukan');
+            $this->authorizeRecordSite($request, $record);
+            $fillable = array_flip($record->getFillable());
+            $recordData = array_intersect_key($data, $fillable);
+            if (isset($fillable['remark'])) {
+                $recordData['remark'] = $params['remark'] ?? null;
+                unset($recordData['remarks']);
+            }
+            $record->update($recordData);
         }
 
         return response()->json([
@@ -227,6 +247,10 @@ class PicaInspeksiApiController extends Controller
 
         if ($deviceType === 'CCTV') {
             return $this->resolveCctvPica($id);
+        }
+
+        if ($deviceType !== null && $deviceType !== 'Mobile Tower') {
+            return $this->standardInspection($deviceType, $id);
         }
 
         if ($data = InspeksiLaptop::with('inventory.pengguna')->find($id)) {
@@ -324,6 +348,23 @@ class PicaInspeksiApiController extends Controller
         return null;
     }
 
+    private function standardInspection(string $deviceType, string $id): mixed
+    {
+        return match ($deviceType) {
+            'Laptop' => InspeksiLaptop::with('inventory.pengguna')->find($id),
+            'Computer' => InspeksiComputer::with('computer.pengguna')->find($id),
+            'Printer' => InspeksiPrinter::with('printer')->find($id),
+            'Panel Box' => InspeksiPanelBoxNetwork::with('panelBox')->find($id),
+            'Access Point' => InspeksiAccessPoint::with('inventory')->find($id),
+            'Switch' => InspeksiSwitch::with('inventory')->find($id),
+            'Wirelless' => InspeksiWirelless::with('inventory')->find($id),
+            'Scanner' => InspeksiScanner::with('Scanner')->find($id),
+            'Server' => InspeksiServer::with('Server')->find($id),
+            'Tower' => InspeksiTower::with('tower')->find($id),
+            default => null,
+        };
+    }
+
     private function resolveNvrPica(string $id): ?PicaInspeksi
     {
         $data = PicaInspeksi::with(['inspeksiNvr', 'inspeksiNvr.invNvr'])
@@ -391,7 +432,7 @@ class PicaInspeksiApiController extends Controller
             return;
         }
 
-        $recordSite = strtoupper((string) ($record->site ?? $record->inspeksiMt?->site ?? null));
+        $recordSite = strtoupper((string) ($record->site ?? $record->inspeksiMt?->site ?? $record->tower?->site ?? null));
         abort_if($recordSite !== SiteContext::resolve($request), 404);
     }
 }
