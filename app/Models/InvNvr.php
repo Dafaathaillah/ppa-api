@@ -46,4 +46,10 @@ class InvNvr extends Model
     {
         return $this->hasMany(InvCctv::class, 'nvr_id', 'id');
     }
+
+    public function viewOnlyCctvs()
+    {
+        return $this->belongsToMany(InvCctv::class, 'nvr_cctv_view_only', 'nvr_id', 'cctv_id')
+            ->using(NvrCctvViewOnly::class)->withTimestamps();
+    }
 }

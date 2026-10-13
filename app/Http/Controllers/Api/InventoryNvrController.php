@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\Concerns\AuthorizesInventorySite;
 use App\Http\Controllers\Controller;
 use App\Models\InvNvr;
+use App\Support\Api\SiteContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +14,23 @@ use Illuminate\Validation\ValidationException;
 
 class InventoryNvrController extends Controller
 {
+    public function syncChannels(Request $request): JsonResponse
+    {
+        $site = SiteContext::resolve($request);
+        SiteContext::authorizeWrite($request, $site);
+        $updated = DB::transaction(function () use ($site): int {
+            $count = 0;
+            foreach (InvNvr::with(['cctvs', 'viewOnlyCctvs'])->where('site', $site)->cursor() as $nvr) {
+                $used = $nvr->status === 'VIEW_ONLY' ? $nvr->viewOnlyCctvs->count() : $nvr->cctvs->count();
+                $nvr->update(['channel_used' => $used, 'channel_free' => max(0, (int) $nvr->jumlah_channel - $used)]);
+                $count++;
+            }
+            return $count;
+        });
+
+        return response()->json(['message' => "Berhasil mensinkronisasi {$updated} NVR untuk site {$site}.", 'updated' => $updated]);
+    }
+
     use AuthorizesInventorySite;
 
     private const STATUSES = ['READY_USED', 'READY_STANDBY', 'BREAKDOWN', 'SCRAP'];

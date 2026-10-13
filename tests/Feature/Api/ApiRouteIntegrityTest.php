@@ -70,11 +70,7 @@ class ApiRouteIntegrityTest extends TestCase
             }
         }
 
-        $this->assertSame(
-            ['App\\Http\\Controllers\\Api\\VhmsUnitController'],
-            array_values(array_unique($missingClasses)),
-            'Update the documented controller gap list when an API route references another missing class.'
-        );
+        $this->assertSame([], array_values(array_unique($missingClasses)));
         $this->assertSame([], array_values(array_unique($missingMethods)));
     }
 }

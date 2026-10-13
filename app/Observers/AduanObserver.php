@@ -6,6 +6,7 @@ use App\Events\AduanAssigned;
 use App\Events\AduanCreated;
 use App\Events\AduanUpdated;
 use App\Models\Aduan;
+use App\Jobs\SendAduanWebhook;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -27,6 +28,7 @@ class AduanObserver
             'id' => $aduan->id, 'complaint_code' => $aduan->complaint_code, 'site' => $aduan->site,
         ]);
         AduanCreated::dispatch($aduan);
+        SendAduanWebhook::dispatch($aduan)->afterCommit();
     }
 
     public function updated(Aduan $aduan): void

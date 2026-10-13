@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\PasswordBankController;
 use App\Http\Controllers\Api\PengajuanAksesApiController;
 use App\Http\Controllers\Api\PengalihanAssetApiController;
 use App\Http\Controllers\Api\PicaInspeksiApiController;
+use App\Http\Controllers\Api\GenerateInspectionController;
 use App\Http\Controllers\Api\ScannerApiController;
 use App\Http\Controllers\Api\ScannerInspectionController;
 use App\Http\Controllers\Api\ServerInspectionController;
@@ -241,6 +242,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/inspection-schedules', [InspectionScheduleApiController::class, 'index']);
     Route::match(['put', 'patch'], '/inspection-schedules/{id}', [InspectionScheduleApiController::class, 'update']);
+    Route::post('/inspections/generate', GenerateInspectionController::class);
 
     Route::get('/pengalihan-assets', [PengalihanAssetApiController::class, 'index']);
     Route::get('/pengalihan-assets/data', [PengalihanAssetApiController::class, 'data']);
@@ -294,6 +296,7 @@ Route::middleware('auth:sanctum')->prefix('inventory/tabs')->name('api.inventory
 Route::middleware('auth:sanctum')->prefix('inventory/nvrs')->name('api.inventory.nvrs.')->group(function () {
     Route::get('options', [InventoryNvrController::class, 'options'])->name('options');
     Route::get('next-number', [InventoryNvrController::class, 'nextNumber'])->name('next-number');
+    Route::post('sync-channels', [InventoryNvrController::class, 'syncChannels'])->name('sync-channels');
     Route::get('/', [InventoryNvrController::class, 'index'])->name('index');
     Route::post('/', [InventoryNvrController::class, 'store'])->name('store');
     Route::get('{nvr}', [InventoryNvrController::class, 'show'])->whereUuid('nvr')->name('show');
