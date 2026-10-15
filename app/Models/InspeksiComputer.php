@@ -17,7 +17,6 @@ class InspeksiComputer extends Model
         'created_date',
         'month',
         'year',
-        'inspection_at',
         'inspection_status',
         'inspection_image',
         'triwulan',

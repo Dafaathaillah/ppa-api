@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Schema;
 
 class PengalihanAsset extends Model
 {
@@ -26,7 +27,21 @@ class PengalihanAsset extends Model
         'site',
         'dept',
         'dept_prev',
+        'spek',
     ];
+
+    public function getTable()
+    {
+        if (isset($this->table)) {
+            return $this->table;
+        }
+
+        if (Schema::hasTable('pengalihan_asset')) {
+            return 'pengalihan_asset';
+        }
+
+        return 'pengalihan_assets';
+    }
 
     public function pengguna(): BelongsTo
     {

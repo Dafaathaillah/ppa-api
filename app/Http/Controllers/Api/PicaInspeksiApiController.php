@@ -130,7 +130,8 @@ class PicaInspeksiApiController extends Controller
         SiteContext::authorizeWrite($request, SiteContext::resolve($request));
 
         $params = $request->validate([
-            'device_type' => ['required', Rule::in(self::DEVICE_TYPES)],
+            // nullable: APK lama tidak mengirim device_type; tipe dideteksi dari id.
+            'device_type' => ['nullable', Rule::in(self::DEVICE_TYPES)],
             'site' => ['nullable', 'string'],
             'temuan' => ['nullable', 'string'],
             'tindakan' => ['nullable', 'string'],
@@ -166,6 +167,7 @@ class PicaInspeksiApiController extends Controller
         $existing = $this->resolveInspection($id, $params['device_type'] ?? null);
         abort_if(! $existing, 404, 'Data inspeksi tidak ditemukan');
         $this->authorizeRecordSite($request, $existing);
+        $params['device_type'] ??= $existing->device_type;
 
         if ($request->hasFile('image_temuan')) {
             $data['findings_image'] = ImageOptimizerService::storeAndOptimize($request->file('image_temuan'), 'images');

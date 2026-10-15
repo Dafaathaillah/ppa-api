@@ -52,6 +52,14 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * FCM device tokens registered by this user's phones (push notifications).
+     */
+    public function deviceTokens()
+    {
+        return $this->hasMany(DeviceToken::class);
+    }
+
     public function jobs()
     {
         return DailyJob::whereJsonContains('crew', (string) $this->id)->get();
