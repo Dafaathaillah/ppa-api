@@ -24,6 +24,7 @@ class InspectionSiteAuthorizationTest extends TestCase
             $table->uuid('id')->primary();
             $table->string('scanner_code')->nullable();
             $table->string('item_name')->nullable();
+            $table->string('ip_address')->nullable();
             $table->string('location')->nullable();
             $table->string('status')->nullable();
             $table->string('site')->nullable();
@@ -69,6 +70,32 @@ class InspectionSiteAuthorizationTest extends TestCase
             ->assertJsonPath('data.0.id', $own->id);
 
         $this->getJson("/api/inspections/scanners/{$other->id}")->assertNotFound();
+    }
+
+    public function test_scanner_search_filters_inventory_and_only_exposes_approved_status(): void
+    {
+        Sanctum::actingAs(User::create(['name' => 'Tech BIB', 'site' => 'BIB', 'role' => 'ict_technician']));
+        $pending = $this->scanner('BIB', 'BIB-SCN-001');
+        $pending->update(['status_approval' => 'pending']);
+        $approved = $this->scanner('BIB', 'BIB-SCN-002');
+        $approved->Scanner->update(['ip_address' => '172.16.20.22']);
+        $approved->update(['status_approval' => 'approve', 'approved_by' => 'Leader']);
+
+        $this->getJson('/api/inspections/scanners?search=SCN-002')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $approved->id)
+            ->assertJsonPath('data.0.status_approval', 'approved');
+
+        $this->getJson("/api/inspections/scanners/{$pending->id}")
+            ->assertOk()
+            ->assertJsonPath('data.status_approval', null)
+            ->assertJsonPath('data.approved_by', null);
+
+        $this->getJson('/api/inspections/scanners?search=172.16.20.22')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $approved->id);
     }
 
     private function scanner(string $site, string $code): InspeksiScanner

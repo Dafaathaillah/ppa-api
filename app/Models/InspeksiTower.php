@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class InspeksiTower extends Model
 {
     use HasFactory;
+
     protected $fillable = [
         'inv_tower_id',
         'pica_number',
@@ -15,7 +16,18 @@ class InspeksiTower extends Model
         'month',
         'year',
         'inspection_status',
+        'inspection_at',
         'inspector',
+        'worthiness',
+        'kelayakan',
+        'condition',
+        'device_status',
+        'inventory_status',
+        'inspection_image',
+        'checklist_results_list',
+        'list_results_remark',
+        'pic',
+        'crew',
         'conditions',
         'physic_condition_tower',
         'physic_condition_tower_text',
@@ -34,4 +46,14 @@ class InspeksiTower extends Model
         'approved_by',
         'status_approval',
     ];
+
+    protected $casts = [
+        'inspection_at' => 'datetime',
+        'due_date' => 'date',
+    ];
+
+    public function tower()
+    {
+        return $this->belongsTo(InvTower::class, 'inv_tower_id');
+    }
 }

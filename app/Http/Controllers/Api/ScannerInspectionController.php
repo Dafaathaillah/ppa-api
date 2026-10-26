@@ -37,6 +37,11 @@ class ScannerInspectionController extends AbstractSimpleAssetInspectionControlle
         return ['fisik', 'kaca', 'kabel', 'power', 'mekanik', 'hasil_scan'];
     }
 
+    protected function searchableInventoryColumns(): array
+    {
+        return ['scanner_code', 'item_name', 'ip_address', 'location'];
+    }
+
     protected function inventoryResource(Model $inventory): array
     {
         return ['id' => $inventory->getKey(), 'scanner_code' => $inventory->scanner_code, 'item_name' => $inventory->item_name,

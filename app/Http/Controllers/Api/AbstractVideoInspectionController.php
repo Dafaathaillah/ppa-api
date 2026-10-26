@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\PresentsInspectionList;
 use App\Http\Controllers\Controller;
 use App\Models\PicaInspeksi;
 use App\Support\Api\SiteContext;
@@ -15,6 +16,8 @@ use Illuminate\Validation\Rule;
 
 abstract class AbstractVideoInspectionController extends Controller
 {
+    use PresentsInspectionList;
+
     abstract protected function inspectionModel(): string;
 
     abstract protected function inventoryRelation(): string;
@@ -37,6 +40,7 @@ abstract class AbstractVideoInspectionController extends Controller
             'location' => ['nullable', 'string', 'max:255'],
             'status' => ['nullable', 'string', 'max:255'],
             'status_approval' => ['nullable', 'string', 'max:255'],
+            'search' => ['nullable', 'string', 'max:255'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
         $model = $this->inspectionModel();
@@ -44,7 +48,9 @@ abstract class AbstractVideoInspectionController extends Controller
         $relation = $this->inventoryRelation();
         $query = $model::query()->with([$relation, $this->findingsRelation()]);
 
-        if ($site !== null) {
+        if (! SiteContext::canAccessAnySite($request) && $site === null) {
+            $query->whereRaw('1 = 0');
+        } elseif ($site !== null) {
             $query->where('site', $site);
         }
 
@@ -54,13 +60,24 @@ abstract class AbstractVideoInspectionController extends Controller
             ->when($filters['status_approval'] ?? null, fn ($q, $value) => $q->where('status_approval', $value))
             ->when($filters['location'] ?? null, fn ($q, $value) => $q->whereHas($relation, fn ($inventory) => $inventory->where('location', $value)));
 
-        return response()->json($query->orderByDesc('inspection_year')->orderByDesc('inspection_month')
-            ->paginate($filters['per_page'] ?? 15));
+        $this->applyInspectionSearch(
+            $query,
+            $filters['search'] ?? null,
+            ['remark', 'kondisi', 'kelayakan', 'inspector_name'],
+            $relation,
+            ['inventory_number', 'nvr_name', 'cctv_code', 'cctv_name', 'ip_address', 'location']
+        );
+
+        $data = $query->orderByDesc('inspection_year')->orderByDesc('inspection_month')
+            ->paginate($filters['per_page'] ?? 15)
+            ->through(fn (Model $inspection) => $this->inspectionResource($inspection));
+
+        return response()->json($data);
     }
 
     public function show(Request $request, string $inspection): JsonResponse
     {
-        return response()->json(['data' => $this->findAuthorized($request, $inspection)]);
+        return response()->json(['data' => $this->inspectionResource($this->findAuthorized($request, $inspection))]);
     }
 
     public function process(Request $request, string $inspection): JsonResponse

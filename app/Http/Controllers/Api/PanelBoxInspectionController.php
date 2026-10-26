@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\PresentsInspectionList;
 use App\Http\Controllers\Controller;
 use App\Models\InspeksiPanelBoxNetwork;
 use App\Models\PicaInspeksi;
@@ -16,12 +17,15 @@ use Illuminate\Validation\Rule;
 
 class PanelBoxInspectionController extends Controller
 {
+    use PresentsInspectionList;
+
     public function index(Request $request): JsonResponse
     {
         $filters = $request->validate([
             'site' => ['nullable', 'string', 'max:25'], 'month' => ['nullable', 'integer', 'between:1,12'],
             'year' => ['nullable', 'integer', 'between:2000,2100'],
             'inspection_status' => ['nullable', 'string', 'max:255'], 'status_approval' => ['nullable', 'string', 'max:255'],
+            'search' => ['nullable', 'string', 'max:255'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
         if (! SiteContext::canAccessAnySite($request)) {
@@ -31,13 +35,21 @@ class PanelBoxInspectionController extends Controller
         if (! SiteContext::canAccessAnySite($request)) {
             SiteContext::apply($query, 'site', SiteContext::resolve($request));
         }
-        $data = $query
+        $query
             ->when($filters['site'] ?? null, fn ($q, $site) => $q->where('site', strtoupper($site)))
             ->when($filters['month'] ?? null, fn ($q, $month) => $q->where('month', $month))
             ->when($filters['year'] ?? null, fn ($q, $year) => $q->where('year', $year))
             ->when($filters['inspection_status'] ?? null, fn ($q, $status) => $q->where('inspection_status', $status))
-            ->when($filters['status_approval'] ?? null, fn ($q, $status) => $q->where('status_approval', $status))
-            ->latest('inspection_at')->paginate($filters['per_page'] ?? 15);
+            ->when($filters['status_approval'] ?? null, fn ($q, $status) => $q->where('status_approval', $status));
+        $this->applyInspectionSearch(
+            $query,
+            $filters['search'] ?? null,
+            ['pica_number', 'conditions', 'remarks', 'findings', 'inspection_by'],
+            'panelBox',
+            ['inventory_number', 'item_name', 'panel_type', 'location']
+        );
+        $data = $query->latest('inspection_at')->paginate($filters['per_page'] ?? 15)
+            ->through(fn (InspeksiPanelBoxNetwork $item) => $this->inspectionResource($item));
 
         return response()->json($data);
     }
@@ -48,7 +60,8 @@ class PanelBoxInspectionController extends Controller
         if (! SiteContext::canAccessAnySite($request)) {
             SiteContext::apply($query, 'site', SiteContext::resolve($request));
         }
-        return response()->json(['data' => $query->findOrFail($inspection)]);
+
+        return response()->json(['data' => $this->inspectionResource($query->findOrFail($inspection))]);
     }
 
     public function process(Request $request, string $inspection): JsonResponse
@@ -98,7 +111,7 @@ class PanelBoxInspectionController extends Controller
             throw $exception;
         }
 
-        return response()->json(['data' => InspeksiPanelBoxNetwork::with(['panelBox', 'devices'])->findOrFail($inspection)]);
+        return response()->json(['data' => $this->inspectionResource(InspeksiPanelBoxNetwork::with(['panelBox', 'devices'])->findOrFail($inspection))]);
     }
 
     public function approval(Request $request, string $inspection): JsonResponse
@@ -109,7 +122,7 @@ class PanelBoxInspectionController extends Controller
         abort_unless($record->inspection_status === 'Y', 422, 'Data ini belum diinspeksi.');
         $record->update(['approved_by' => $request->user()->name, 'status_approval' => $validated['approval_type'] === 'accept' ? 'approved' : 'reject']);
 
-        return response()->json(['data' => InspeksiPanelBoxNetwork::with(['panelBox', 'devices'])->findOrFail($inspection)]);
+        return response()->json(['data' => $this->inspectionResource(InspeksiPanelBoxNetwork::with(['panelBox', 'devices'])->findOrFail($inspection))]);
     }
 
     private function assertCanProcess(Request $request, string $site): void

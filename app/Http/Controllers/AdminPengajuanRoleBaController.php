@@ -11,6 +11,7 @@ class AdminPengajuanRoleBaController extends Controller
 {
     public function index()
     {
+        
         $data = pengajuanAksesUser::where('site', 'BA')->get();
         return Inertia::render('Guest/SiteBa/AksesRoleIndex', ['dataUsers' => $data]);
     }

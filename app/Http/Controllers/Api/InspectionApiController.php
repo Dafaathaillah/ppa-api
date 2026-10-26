@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\PresentsInspectionList;
 use App\Http\Controllers\Controller;
 use App\Models\KategoriInspeksi;
 use App\Models\PicaInspeksi;
@@ -10,11 +11,13 @@ use App\Support\Api\InspectionRegistry;
 use App\Support\Api\SiteContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class InspectionApiController extends Controller
 {
+    use PresentsInspectionList;
+
     public function index(Request $request, string $type)
     {
         $config = InspectionRegistry::get($type);
@@ -31,17 +34,17 @@ class InspectionApiController extends Controller
         // page the record would land on. Own columns are intersected with the
         // model's fillable so a type that lacks a column never breaks the query.
         if ($request->filled('search')) {
-            $raw  = (string) $request->string('search');
-            $term = '%' . addcslashes($raw, '%_\\') . '%';
-            $fillable = (new $model())->getFillable();
+            $raw = (string) $request->string('search');
+            $term = '%'.addcslashes($raw, '%_\\').'%';
+            $fillable = (new $model)->getFillable();
             $ownCols = array_values(array_intersect(
                 $config['search_own'] ?? [],
                 $fillable
             ));
-            $relation     = $config['search_relation'] ?? null;
+            $relation = $config['search_relation'] ?? null;
             $relationCols = $config['search_relation_cols'] ?? [];
             $userRelation = $config['search_user_relation'] ?? null;
-            $userCols     = $config['search_user_cols'] ?? [];
+            $userCols = $config['search_user_cols'] ?? [];
 
             // Status-label keyword support (visible-label parity). A user may type
             // the human status rendered on the card — "inspected", "not inspected
@@ -97,7 +100,7 @@ class InspectionApiController extends Controller
 
             $query->where(function ($outer) use (
                 $term, $ownCols, $relation, $relationCols, $userRelation, $userCols,
-                $orLike, $needle, $statusCols, $hasInspectionStatus, $notScrap, $assetStatusIs
+                $orLike, $needle, $hasInspectionStatus, $notScrap, $assetStatusIs
             ) {
                 foreach ($ownCols as $col) {
                     $outer->orWhere($col, 'like', $term);
@@ -153,7 +156,9 @@ class InspectionApiController extends Controller
         return response()->json([
             'type' => $type,
             'site' => $site,
-            'data' => $query->latest('created_at')->paginate((int) $request->integer('per_page', 25)),
+            'data' => $query->latest('created_at')
+                ->paginate(min(100, max(1, (int) $request->integer('per_page', 25))))
+                ->through(fn (Model $inspection) => $this->inspectionResource($inspection)),
         ]);
     }
 
@@ -166,7 +171,7 @@ class InspectionApiController extends Controller
 
         $payload = [
             'type' => $type,
-            'data' => $inspection,
+            'data' => $this->inspectionResource($inspection),
         ];
 
         if ($type === 'mobile-tower') {
@@ -261,23 +266,23 @@ class InspectionApiController extends Controller
             PicaInspeksi::updateOrCreate(
                 ['inspeksi_id' => $inspection->id],
                 [
-                    'pica_number'  => $inspection->getAttribute('pica_number') ?? '0',
-                    'temuan'       => $inspection->getAttribute('findings'),
-                    'tindakan'     => $inspection->getAttribute('findings_action'),
-                    'due_date'     => $inspection->getAttribute('due_date'),
-                    'remark'       => $inspection->getAttribute('remarks'),
-                    'status_pica'  => $inspection->getAttribute('findings_status'),
-                    'foto_temuan'  => $inspection->getAttribute('findings_image'),
+                    'pica_number' => $inspection->getAttribute('pica_number') ?? '0',
+                    'temuan' => $inspection->getAttribute('findings'),
+                    'tindakan' => $inspection->getAttribute('findings_action'),
+                    'due_date' => $inspection->getAttribute('due_date'),
+                    'remark' => $inspection->getAttribute('remarks'),
+                    'status_pica' => $inspection->getAttribute('findings_status'),
+                    'foto_temuan' => $inspection->getAttribute('findings_image'),
                     'foto_tindakan' => $inspection->getAttribute('action_image'),
-                    'close_by'     => $request->user()?->name,
-                    'site'         => $inspection->getAttribute($config['site_column']),
+                    'close_by' => $request->user()?->name,
+                    'site' => $inspection->getAttribute($config['site_column']),
                 ]
             );
         }
 
         return response()->json([
             'message' => 'Inspection updated successfully.',
-            'data' => $inspection->fresh(),
+            'data' => $this->inspectionResource($inspection->fresh()),
         ]);
     }
 
@@ -323,7 +328,7 @@ class InspectionApiController extends Controller
             'status_approval' => $validated['approval_type'] === 'accept' ? 'approved' : 'reject',
         ]);
 
-        return response()->json(['data' => $inspection->fresh()]);
+        return response()->json(['data' => $this->inspectionResource($inspection->fresh())]);
     }
 
     private function authorizedInspectionQuery(Request $request, array $config)

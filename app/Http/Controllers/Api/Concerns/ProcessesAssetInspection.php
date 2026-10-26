@@ -10,6 +10,8 @@ use Illuminate\Http\Request;
 
 trait ProcessesAssetInspection
 {
+    use PresentsInspectionList;
+
     protected function scopeInspectionAccess(Builder $query, Request $request, ?string $siteColumn = 'site', ?string $relation = null): Builder
     {
         if (SiteContext::canAccessAnySite($request)) {
@@ -31,6 +33,7 @@ trait ProcessesAssetInspection
             'year' => ['nullable', 'integer', 'between:2000,2500'],
             'inspection_status' => ['nullable', 'string', 'max:255'],
             'status_approval' => ['nullable', 'string', 'max:255'],
+            'search' => ['nullable', 'string', 'max:255'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
     }

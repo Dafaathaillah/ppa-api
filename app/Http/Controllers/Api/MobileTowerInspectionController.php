@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\PresentsInspectionList;
 use App\Http\Controllers\Controller;
 use App\Models\InspeksiMobileTower;
 use App\Models\PicaInspeksi;
@@ -16,6 +17,8 @@ use Illuminate\Validation\Rule;
 
 class MobileTowerInspectionController extends Controller
 {
+    use PresentsInspectionList;
+
     public function index(Request $request): JsonResponse
     {
         $filters = $request->validate([
@@ -24,6 +27,7 @@ class MobileTowerInspectionController extends Controller
             'year' => ['nullable', 'integer', 'between:2000,2100'],
             'inspection_status' => ['nullable', 'string', 'max:255'],
             'status_approval' => ['nullable', 'string', 'max:255'],
+            'search' => ['nullable', 'string', 'max:255'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
         if (! SiteContext::canAccessAnySite($request)) {
@@ -33,13 +37,21 @@ class MobileTowerInspectionController extends Controller
         if (! SiteContext::canAccessAnySite($request)) {
             SiteContext::apply($query, 'site', SiteContext::resolve($request));
         }
-        $data = $query
+        $query
             ->when($filters['site'] ?? null, fn ($q, $site) => $q->where('site', strtoupper($site)))
             ->when($filters['month'] ?? null, fn ($q, $month) => $q->where('month', $month))
             ->when($filters['year'] ?? null, fn ($q, $year) => $q->where('year', $year))
             ->when($filters['inspection_status'] ?? null, fn ($q, $status) => $q->where('inspection_status', $status))
-            ->when($filters['status_approval'] ?? null, fn ($q, $status) => $q->where('status_approval', $status))
-            ->latest('inspection_at')->paginate($filters['per_page'] ?? 15);
+            ->when($filters['status_approval'] ?? null, fn ($q, $status) => $q->where('status_approval', $status));
+        $this->applyInspectionSearch(
+            $query,
+            $filters['search'] ?? null,
+            ['pica_number', 'condition', 'remarks', 'inspector'],
+            'mt',
+            ['inventory_number', 'mt_code', 'type_mt', 'location', 'detail_location']
+        );
+        $data = $query->latest('inspection_at')->paginate($filters['per_page'] ?? 15)
+            ->through(fn (InspeksiMobileTower $item) => $this->inspectionResource($item));
 
         return response()->json($data);
     }
@@ -50,7 +62,8 @@ class MobileTowerInspectionController extends Controller
         if (! SiteContext::canAccessAnySite($request)) {
             SiteContext::apply($query, 'site', SiteContext::resolve($request));
         }
-        return response()->json(['data' => $query->findOrFail($inspection)]);
+
+        return response()->json(['data' => $this->inspectionResource($query->findOrFail($inspection))]);
     }
 
     public function process(Request $request, string $inspection): JsonResponse
@@ -132,7 +145,7 @@ class MobileTowerInspectionController extends Controller
             throw $exception;
         }
 
-        return response()->json(['data' => InspeksiMobileTower::with(['mt', 'devices'])->findOrFail($inspection)]);
+        return response()->json(['data' => $this->inspectionResource(InspeksiMobileTower::with(['mt', 'devices'])->findOrFail($inspection))]);
     }
 
     public function approval(Request $request, string $inspection): JsonResponse
@@ -143,7 +156,7 @@ class MobileTowerInspectionController extends Controller
         abort_unless($record->inspection_status === 'Y', 422, 'Data ini belum diinspeksi.');
         $record->update(['approved_by' => $request->user()->name, 'status_approval' => $validated['approval_type'] === 'accept' ? 'approved' : 'reject']);
 
-        return response()->json(['data' => InspeksiMobileTower::with(['mt', 'devices'])->findOrFail($inspection)]);
+        return response()->json(['data' => $this->inspectionResource(InspeksiMobileTower::with(['mt', 'devices'])->findOrFail($inspection))]);
     }
 
     private function assertCanProcess(Request $request, string $site): void

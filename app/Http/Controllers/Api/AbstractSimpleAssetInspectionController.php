@@ -40,6 +40,11 @@ abstract class AbstractSimpleAssetInspectionController extends Controller
         return [$this->relation()];
     }
 
+    protected function searchableInventoryColumns(): array
+    {
+        return ['inventory_number', 'device_name', 'ip_address', 'location'];
+    }
+
     public function index(Request $request): JsonResponse
     {
         $filters = $this->inspectionFilters($request);
@@ -50,6 +55,13 @@ abstract class AbstractSimpleAssetInspectionController extends Controller
         $query = $model::query()->with($this->eagerLoads());
         $this->scopeInspectionAccess($query, $request);
         $this->applyFilters($query, $filters);
+        $this->applyInspectionSearch(
+            $query,
+            $filters['search'] ?? null,
+            ['pica_number', 'condition', 'findings', 'findings_action', 'findings_status', $this->remarkField()],
+            $this->relation(),
+            $this->searchableInventoryColumns()
+        );
         $data = $query->orderByDesc('year')->orderByDesc('month')->orderByDesc('created_at')
             ->paginate($filters['per_page'] ?? 15)->through(fn (Model $item) => $this->resource($item));
 
@@ -161,7 +173,7 @@ abstract class AbstractSimpleAssetInspectionController extends Controller
             'findings' => $record->findings, 'findings_action' => $record->findings_action, 'findings_status' => $record->findings_status,
             'findings_image' => $record->findings_image, 'action_image' => $record->action_image, 'inspection_image' => $record->inspection_image,
             'due_date' => $record->due_date, 'remarks' => $record->{$this->remarkField()}, 'pica_number' => $record->pica_number,
-            'status_approval' => $record->status_approval, 'approved_by' => $record->approved_by,
+            ...$this->approvalResource($record),
             'inventory' => $this->inventoryResource($inventory), 'pica' => $this->picaFor((string) $record->getKey(), $this->picaCode())];
         foreach ($this->checklistFields() as $field) {
             $data[$field] = $record->{$field};

@@ -39,6 +39,11 @@ class ServerInspectionController extends AbstractSimpleAssetInspectionController
             'antivirus', 'system_log', 'time_synchronization', 'storage_capacity', 'backup_restore_review', 'asset_registered'];
     }
 
+    protected function searchableInventoryColumns(): array
+    {
+        return ['server_code', 'server_name', 'ip_address', 'location'];
+    }
+
     protected function inventoryResource(Model $inventory): array
     {
         return ['id' => $inventory->getKey(), 'server_code' => $inventory->server_code, 'server_name' => $inventory->server_name,
