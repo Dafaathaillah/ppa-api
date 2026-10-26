@@ -67,4 +67,12 @@ trait PresentsInspectionList
             'approved_by' => $status === null ? null : $inspection->approved_by,
         ];
     }
+
+    protected function inspectionResource(Model $inspection): array
+    {
+        return [
+            ...$inspection->toArray(),
+            ...$this->approvalResource($inspection),
+        ];
+    }
 }

@@ -46,4 +46,29 @@ class CctvInspectionApiTest extends TestCase
         $this->postJson("/api/inspections/cctv/{$inspection->id}/approval", ['approval_type' => 'accept'])
             ->assertOk()->assertJsonPath('data.status_approval', 'approved');
     }
+
+    public function test_list_searches_inventory_and_hides_unapproved_status(): void
+    {
+        Sanctum::actingAs(User::create(['name' => 'Tech', 'site' => 'BIB', 'role' => 'ict_technician']));
+        $match = InvCctv::create(['cctv_code' => 'BIB-CCTV-SEARCH', 'cctv_name' => 'Camera Search', 'site' => 'BIB', 'status' => 'READY_USED']);
+        $other = InvCctv::create(['cctv_code' => 'BIB-CCTV-OTHER', 'cctv_name' => 'Camera Other', 'site' => 'BIB', 'status' => 'READY_USED']);
+        $pending = InspeksiCctv::create(['cctv_id' => $match->id, 'inspection_month' => 10, 'inspection_year' => 2026, 'site' => 'BIB', 'status_approval' => 'pending', 'approved_by' => 'Nobody']);
+        InspeksiCctv::create(['cctv_id' => $other->id, 'inspection_month' => 10, 'inspection_year' => 2026, 'site' => 'BIB']);
+
+        $this->getJson('/api/inspections/cctv?search=CCTV-SEARCH')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $pending->id)
+            ->assertJsonPath('data.0.status_approval', null)
+            ->assertJsonPath('data.0.approved_by', null);
+    }
+
+    public function test_list_fails_closed_when_user_has_no_site(): void
+    {
+        Sanctum::actingAs(User::create(['name' => 'Tech', 'site' => null, 'role' => 'ict_technician']));
+        $inventory = InvCctv::create(['site' => 'BIB', 'status' => 'READY_USED']);
+        InspeksiCctv::create(['cctv_id' => $inventory->id, 'inspection_month' => 10, 'inspection_year' => 2026, 'site' => 'BIB']);
+
+        $this->getJson('/api/inspections/cctv')->assertOk()->assertJsonCount(0, 'data');
+    }
 }

@@ -48,4 +48,16 @@ class NvrInspectionApiTest extends TestCase
 
         $this->postJson("/api/inspections/nvrs/{$inspection->id}/process", [])->assertNotFound();
     }
+
+    public function test_detail_normalizes_legacy_approval_values(): void
+    {
+        Sanctum::actingAs(User::create(['name' => 'Tech', 'site' => 'BIB', 'role' => 'ict_technician']));
+        $inventory = InvNvr::create(['inventory_number' => 'BIB-NVR-APPROVE', 'site' => 'BIB', 'status' => 'READY_USED']);
+        $inspection = InspeksiNvr::create(['nvr_id' => $inventory->id, 'inspection_month' => 10, 'inspection_year' => 2026, 'site' => 'BIB', 'status_approval' => 'approve', 'approved_by' => 'Leader']);
+
+        $this->getJson("/api/inspections/nvrs/{$inspection->id}")
+            ->assertOk()
+            ->assertJsonPath('data.status_approval', 'approved')
+            ->assertJsonPath('data.approved_by', 'Leader');
+    }
 }
