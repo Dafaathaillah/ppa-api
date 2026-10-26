@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Concerns;
 
 use App\Models\PicaInspeksi;
+use App\Support\Api\SiteContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -12,6 +13,8 @@ use Intervention\Image\Laravel\Facades\Image;
 
 abstract class ProcessesNetworkInspection
 {
+    use PresentsInspectionList;
+
     abstract protected function inspectionModel(): string;
 
     abstract protected function picaDeviceCode(): string;
@@ -24,28 +27,43 @@ abstract class ProcessesNetworkInspection
             'year' => ['nullable', 'integer', 'between:2000,2100'],
             'inspection_status' => ['nullable', 'string', 'max:255'],
             'status_approval' => ['nullable', 'string', 'max:255'],
+            'search' => ['nullable', 'string', 'max:255'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
         $model = $this->inspectionModel();
-        $data = $model::query()
-            ->with('inventory')
-            ->when($filters['site'] ?? null, fn ($query, $site) => $query->where('site', strtoupper($site)))
+        $query = $model::query()
+            ->with('inventory');
+        $canAccessAnySite = SiteContext::canAccessAnySite($request);
+        $site = $canAccessAnySite ? ($filters['site'] ?? null) : SiteContext::resolve($request);
+        if (! $canAccessAnySite && $site === null) {
+            $query->whereRaw('1 = 0');
+        } elseif ($site !== null) {
+            $query->where('site', strtoupper($site));
+        }
+        $query
             ->when($filters['month'] ?? null, fn ($query, $month) => $query->where('month', $month))
             ->when($filters['year'] ?? null, fn ($query, $year) => $query->where('year', $year))
             ->when($filters['inspection_status'] ?? null, fn ($query, $status) => $query->where('inspection_status', $status))
-            ->when($filters['status_approval'] ?? null, fn ($query, $status) => $query->where('status_approval', $status))
-            ->latest('inspection_at')
+            ->when($filters['status_approval'] ?? null, fn ($query, $status) => $query->where('status_approval', $status));
+        $this->applyInspectionSearch(
+            $query,
+            $filters['search'] ?? null,
+            ['pica_number', 'ip_address', 'condition', 'device_status', 'remarks', 'findings', 'corrective_action', 'finding_status'],
+            'inventory',
+            ['inventory_number', 'device_name', 'ip_address', 'location']
+        );
+        $data = $query->latest('inspection_at')
             ->paginate($filters['per_page'] ?? 15)
             ->through(fn (Model $inspection) => $this->resource($inspection));
 
         return response()->json($data);
     }
 
-    public function show(string $inspection): JsonResponse
+    public function show(Request $request, string $inspection): JsonResponse
     {
         return response()->json([
-            'data' => $this->resource($this->findInspection($inspection)),
+            'data' => $this->resource($this->findInspection($inspection, $request)),
         ]);
     }
 
@@ -65,7 +83,7 @@ abstract class ProcessesNetworkInspection
             'findings_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:10240'],
             'corrective_action_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:10240'],
         ]);
-        $record = $this->findInspection($inspection);
+        $record = $this->findInspection($inspection, $request);
         abort_unless(strtoupper((string) $record->site) === strtoupper((string) $request->user()->site), 403, 'Anda hanya dapat memproses inspeksi site sendiri.');
         $findingsImage = $request->hasFile('findings_image') ? $this->storeImage($request, 'findings_image') : $record->findings_image;
         $correctiveActionImage = $request->hasFile('corrective_action_image') ? $this->storeImage($request, 'corrective_action_image') : $record->corrective_action_image;
@@ -99,7 +117,7 @@ abstract class ProcessesNetworkInspection
             $pica ? $pica->update($picaData) : PicaInspeksi::create([...$picaData, 'inspeksi_id' => $record->getKey()]);
         });
 
-        return response()->json(['data' => $this->resource($this->findInspection($inspection))]);
+        return response()->json(['data' => $this->resource($this->findInspection($inspection, $request))]);
     }
 
     public function approval(Request $request, string $inspection): JsonResponse
@@ -107,17 +125,17 @@ abstract class ProcessesNetworkInspection
         $validated = $request->validate([
             'approval_type' => ['required', Rule::in(['accept', 'reject'])],
         ]);
-        $record = $this->findInspection($inspection);
+        $record = $this->findInspection($inspection, $request);
         abort_unless($request->user()->role === 'ict_group_leader', 403, 'Hanya Group Leader yang dapat melakukan approval inspeksi.');
         abort_unless(strtoupper((string) $record->site) === strtoupper((string) $request->user()->site), 403, 'Group Leader hanya dapat melakukan approval untuk site sendiri.');
         abort_unless(in_array($record->inspection_status, ['Y', 'sudah_inspeksi'], true), 422, 'Data ini belum diinspeksi.');
 
         $record->update([
             'approved_by' => $request->user()->name,
-            'status_approval' => $validated['approval_type'] === 'accept' ? 'approve' : 'reject',
+            'status_approval' => $validated['approval_type'] === 'accept' ? 'approved' : 'reject',
         ]);
 
-        return response()->json(['data' => $this->resource($this->findInspection($inspection))]);
+        return response()->json(['data' => $this->resource($this->findInspection($inspection, $request))]);
     }
 
     private function nextPicaNumber(string $site): string
@@ -138,11 +156,17 @@ abstract class ProcessesNetworkInspection
         return asset('images/'.$filename);
     }
 
-    protected function findInspection(string $id): Model
+    protected function findInspection(string $id, ?Request $request = null): Model
     {
         $model = $this->inspectionModel();
 
-        return $model::query()->with('inventory')->findOrFail($id);
+        $query = $model::query()->with('inventory');
+        if ($request && ! SiteContext::canAccessAnySite($request)) {
+            $site = SiteContext::resolve($request);
+            $site === null ? $query->whereRaw('1 = 0') : $query->where('site', $site);
+        }
+
+        return $query->findOrFail($id);
     }
 
     protected function resource(Model $inspection): array
@@ -167,8 +191,7 @@ abstract class ProcessesNetworkInspection
             'target_completion_date' => $inspection->target_completion_date,
             'pica_number' => $inspection->pica_number,
             'remarks' => $inspection->remarks,
-            'status_approval' => $inspection->status_approval,
-            'approved_by' => $inspection->approved_by,
+            ...$this->approvalResource($inspection),
             'inventory' => $inspection->inventory ? [
                 'id' => $inspection->inventory->getKey(),
                 'inventory_number' => $inspection->inventory->inventory_number,

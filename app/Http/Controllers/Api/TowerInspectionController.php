@@ -28,6 +28,13 @@ class TowerInspectionController extends Controller
         $query = InspeksiTower::query()->with(['tower.category']);
         $this->scopeInspectionAccess($query, $request, null, 'tower');
         $this->applyFilters($query, $filters, null);
+        $this->applyInspectionSearch(
+            $query,
+            $filters['search'] ?? null,
+            ['pica_number', 'condition', 'remarks', 'findings', 'findings_action', 'findings_status'],
+            'tower',
+            ['tower_code', 'location', 'detail_location', 'type_tower']
+        );
         $data = $query->orderByDesc('year')->orderByDesc('month')->orderByDesc('created_at')
             ->paginate($filters['per_page'] ?? 15)->through(fn (InspeksiTower $item) => $this->resource($item));
 
@@ -145,7 +152,7 @@ class TowerInspectionController extends Controller
             'findings_action' => $this->decodedArray($record->findings_action), 'findings_image' => $this->decodedArray($record->findings_image),
             'action_image' => $this->decodedArray($record->action_image), 'inspection_image' => $record->inspection_image, 'due_date' => $record->due_date,
             'remarks' => $record->remarks, 'pic' => $record->pic, 'crew' => $this->decodedArray($record->crew), 'pica_number' => $record->pica_number,
-            'status_approval' => $record->status_approval, 'approved_by' => $record->approved_by, 'inventory' => $record->tower,
+            ...$this->approvalResource($record), 'inventory' => $record->tower,
             'pica' => $pica];
     }
 }

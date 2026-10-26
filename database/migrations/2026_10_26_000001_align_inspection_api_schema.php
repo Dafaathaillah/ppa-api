@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        foreach (['inspeksi_switches', 'inspeksi_wirellesses'] as $tableName) {
+        foreach (['inspeksi_access_points', 'inspeksi_switches', 'inspeksi_wirellesses'] as $tableName) {
             if (! Schema::hasTable($tableName)) {
                 continue;
             }
