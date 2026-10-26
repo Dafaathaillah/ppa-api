@@ -338,9 +338,9 @@ Route::middleware('auth:sanctum')->prefix('inventory/towers')->name('api.invento
     Route::get('options', [InventoryTowerController::class, 'options'])->name('options');
     Route::get('/', [InventoryTowerController::class, 'index'])->name('index');
     Route::post('/', [InventoryTowerController::class, 'store'])->name('store');
-    Route::get('{tower}', [InventoryTowerController::class, 'show'])->whereUuid('tower')->name('show');
-    Route::match(['put', 'patch'], '{tower}', [InventoryTowerController::class, 'update'])->whereUuid('tower')->name('update');
-    Route::delete('{tower}', [InventoryTowerController::class, 'destroy'])->whereUuid('tower')->name('destroy');
+    Route::get('{tower}', [InventoryTowerController::class, 'show'])->name('show');
+    Route::match(['put', 'patch'], '{tower}', [InventoryTowerController::class, 'update'])->name('update');
+    Route::delete('{tower}', [InventoryTowerController::class, 'destroy'])->name('destroy');
 });
 
 Route::middleware('auth:sanctum')->prefix('inventory/access-points')->name('api.inventory.access-points.')->group(function () {
@@ -382,16 +382,16 @@ Route::middleware('auth:sanctum')->prefix('inspections/access-points')->name('ap
 
 Route::middleware('auth:sanctum')->prefix('inspections/switches')->name('api.inspections.switches.')->group(function () {
     Route::get('/', [SwitchInspectionController::class, 'index'])->name('index');
-    Route::get('{inspection}', [SwitchInspectionController::class, 'show'])->whereUuid('inspection')->name('show');
-    Route::post('{inspection}/process', [SwitchInspectionController::class, 'process'])->whereUuid('inspection')->name('process');
-    Route::post('{inspection}/approval', [SwitchInspectionController::class, 'approval'])->whereUuid('inspection')->name('approval');
+    Route::get('{inspection}', [SwitchInspectionController::class, 'show'])->name('show');
+    Route::post('{inspection}/process', [SwitchInspectionController::class, 'process'])->name('process');
+    Route::post('{inspection}/approval', [SwitchInspectionController::class, 'approval'])->name('approval');
 });
 
 Route::middleware('auth:sanctum')->prefix('inspections/wireless')->name('api.inspections.wireless.')->group(function () {
     Route::get('/', [WirelessInspectionController::class, 'index'])->name('index');
-    Route::get('{inspection}', [WirelessInspectionController::class, 'show'])->whereUuid('inspection')->name('show');
-    Route::post('{inspection}/process', [WirelessInspectionController::class, 'process'])->whereUuid('inspection')->name('process');
-    Route::post('{inspection}/approval', [WirelessInspectionController::class, 'approval'])->whereUuid('inspection')->name('approval');
+    Route::get('{inspection}', [WirelessInspectionController::class, 'show'])->name('show');
+    Route::post('{inspection}/process', [WirelessInspectionController::class, 'process'])->name('process');
+    Route::post('{inspection}/approval', [WirelessInspectionController::class, 'approval'])->name('approval');
 });
 
 Route::middleware('auth:sanctum')->prefix('inspections/mobile-towers')->group(function () {

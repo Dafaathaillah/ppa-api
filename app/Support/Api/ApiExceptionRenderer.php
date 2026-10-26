@@ -95,6 +95,7 @@ class ApiExceptionRenderer
             403 => self::resolve403Message($raw),
             404 => 'Data tidak ditemukan.',
             405 => 'Metode permintaan tidak diizinkan server.',
+            413 => 'Ukuran total foto terlalu besar. Maksimal 128 MB per permintaan.',
             419 => 'Sesi kedaluwarsa. Silakan login ulang.',
             422 => $raw !== '' ? $raw : 'Validation failed.',
             429 => 'Terlalu banyak permintaan. Coba lagi sebentar.',
